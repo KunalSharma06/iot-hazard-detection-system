@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hazard Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/rooms.css" />
+  <link rel="stylesheet" href="css/detail.css" />
+</head>
+
+<body>
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon"></span>
+        <span class="logo-text">SafeSense</span>
+      </div>
+      <span class="header-tag">IoT Monitoring System</span>
+    </div>
+    <div class="header-right">
+      <div class="live-dot"></div>
+      <span id="last-update" class="update-text">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- ═══ ROOMS PAGE ════════════════════════════════════════════ -->
+  <main id="rooms-page" class="page">
+    <div class="page-header">
+      <h1 class="page-title">Monitoring Rooms</h1>
+      <p class="page-sub">Click the room to view live details</p>
+    </div>
+    <div class="room-grid" id="room-grid">
+      <!-- Cards injected by rooms.js -->
+    </div>
+  </main>
+
+  <!-- ═══ DETAIL PAGE ═══════════════════════════════════════════ -->
+  <main id="detail-page" class="page hidden">
+    <div class="page-header">
+      <button class="back-btn" id="back-btn">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        All Rooms
+      </button>
+      <div>
+        <h1 class="page-title" id="detail-title">Room 1</h1>
+        <p class="page-sub" id="detail-sub">Live sensor data</p>
+      </div>
+    </div>
+
+    <!-- Overall status banner -->
+    <div id="status-banner" class="status-banner hidden"></div>
+
+    <!-- Sensor gauge grid -->
+    <div class="sensor-grid" id="sensor-grid">
+      <!-- Gauges injected by detail.js -->
+    </div>
+  </main>
+
+  <!-- ═══ Scripts (order matters) ═══════════════════════════════ -->
+  <script src="js/api.js"></script>
+  <script src="js/gauge.js"></script>
+  <script src="js/rooms.js"></script>
+  <script src="js/detail.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
