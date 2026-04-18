@@ -1,10 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+require("dotenv").config();
 
 const roomRoutes = require("./src/routes/roomRoutes");
 const sensorRoutes = require("./src/routes/sensorRoutes");
 const errorHandler = require("./src/middlewares/errorHandler");
+const { startPolling } = require("./src/services/telegramBotService"); // ← ADD THIS
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +26,7 @@ app.use("/api/sensor", sensorRoutes);
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/index.html"));
 });
+
 // ─── Global error handler (must be last) ─────────────────────
 app.use(errorHandler);
 
@@ -35,4 +38,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(
     `\n   ESP32 POST endpoint: http://<YOUR_IP>:${PORT}/api/sensor/data\n`,
   );
+
+  startPolling(); // ← ADD THIS
 });
