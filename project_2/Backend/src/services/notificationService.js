@@ -36,6 +36,7 @@ async function _broadcast(text) {
   if (!config.telegram.enabled) return;
 
   const all = subscriberStore.getAll();
+  console.log("Subscribers:", all);
   if (all.length === 0) {
     console.log("[NOTIFY] No subscribers — skipping");
     return;
