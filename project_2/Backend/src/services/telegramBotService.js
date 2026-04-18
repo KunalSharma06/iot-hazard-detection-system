@@ -64,9 +64,11 @@ function _buildRoomInfo(roomId) {
 
   const l = room.levels || {};
   const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    hour12: true,
   });
 
   // Build active alerts list
@@ -265,8 +267,7 @@ async function startPolling() {
           }
         }
       }
-    } catch (err) {
-    }
+    } catch (err) {}
 
     setTimeout(poll, 3000);
   }

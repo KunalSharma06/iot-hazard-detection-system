@@ -46,13 +46,15 @@ async function _broadcast(text) {
 }
 
 // ── Shared helpers ────────────────────────────────────────────
-const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
-  timeZone: "Asia/Kolkata",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: true,
-});
+function _time() {
+  return new Date().toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
 
 // Room name with number, e.g. "Room 1"
 function _room(roomId) {
