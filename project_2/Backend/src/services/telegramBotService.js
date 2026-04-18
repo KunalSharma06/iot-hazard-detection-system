@@ -50,19 +50,38 @@ function _levelEmoji(level) {
 }
 
 // ── Build /info <roomId> response ────────────────────────────
+// ─── Telegram Bot Listener ────────────────────────────────────
+// Replace ONLY _buildRoomInfo(roomId) with this
+
 function _buildRoomInfo(roomId) {
   const store = getRoomStore();
   const room = store.getRoom(roomId);
 
-  if (!room) {
-    return `📵 <b>Room ${roomId}</b> — No data received yet.\nMake sure ESP32 for Room ${roomId} is powered on and connected.`;
-  }
-
-  if (!room.online) {
-    return `📵 <b>Room ${roomId} — OFFLINE</b>\nLast data was received more than 10 seconds ago.\nCheck ESP32 power and WiFi.`;
+  // SAME professional offline message for both cases:
+  // 1) no data yet
+  // 2) device offline
+  if (!room || !room.online) {
+    return (
+      `🚨 <b>ROOM ${roomId} OFFLINE — CRITICAL ALERT</b>\n` +
+      `📍 Location: Room ${roomId}\n` +
+      `🕐 ${new Date().toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })}\n\n` +
+      `📵 No live sensor data available.\n` +
+      `⚠️ Real-time monitoring has been interrupted.\n\n` +
+      `🔌 Check ESP32 power supply.\n` +
+      `📶 Verify WiFi / network connection.\n` +
+      `🛠 Restart device if required.\n\n` +
+      `⛑ Immediate action recommended.`
+    );
   }
 
   const l = room.levels || {};
+
   const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
     timeZone: "Asia/Kolkata",
     hour: "2-digit",
@@ -71,27 +90,26 @@ function _buildRoomInfo(roomId) {
     hour12: true,
   });
 
-  // Build active alerts list
   const activeList = [];
   if (room.alerts?.fire) activeList.push("🔥 Flame detected");
-  if (room.alerts?.mq2) activeList.push("💨 LPG/Smoke elevated");
+  if (room.alerts?.mq2) activeList.push("💨 LPG / Smoke elevated");
   if (room.alerts?.mq4) activeList.push("⛽ Methane elevated");
-  if (room.alerts?.temp) activeList.push("🌡️ Temperature high");
+  if (room.alerts?.temp) activeList.push("🌡 Temperature high");
 
   const alertSection = activeList.length
-    ? `\n⚠️ <b>Active Alerts:</b>\n${activeList.map((a) => `  • ${a}`).join("\n")}`
-    : "\n✅ All sensors normal";
+    ? `\n⚠️ <b>Active Alerts:</b>\n${activeList.map(a => `• ${a}`).join("\n")}`
+    : `\n✅ All sensors normal`;
 
   return (
     `📊 <b>Room ${roomId} — Live Data</b>\n` +
     `🕐 Last update: ${time}\n` +
     `━━━━━━━━━━━━━━━━━━━\n` +
-    `🌡 Temperature:  ${_levelEmoji(l.temp)}  <b>${room.temp?.toFixed(1) ?? "--"}°C</b>\n` +
-    `💧 Humidity:     ${_levelEmoji(l.humidity)}  <b>${room.humidity?.toFixed(0) ?? "--"}%</b>\n` +
-    `💨 MQ2 (LPG):    ${_levelEmoji(l.mq2)}  <b>${room.mq2 ?? "--"}</b>\n` +
-    `⛽ MQ4 (CH₄):    ${_levelEmoji(l.mq4)}  <b>${room.mq4 ?? "--"}</b>\n` +
-    `🔥 Flame:        ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n` +
-    `🌬 Air Quality:  <b>${room.airQuality ?? "--"}</b>\n` +
+    `🌡 Temperature: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>\n` +
+    `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n` +
+    `💨 MQ2 (LPG): ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>\n` +
+    `⛽ MQ4 (CH₄): ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n` +
+    `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n` +
+    `🌬 Air Quality: <b>${room.airQuality || "Clean"}</b>\n` +
     `━━━━━━━━━━━━━━━━━━━` +
     alertSection
   );
