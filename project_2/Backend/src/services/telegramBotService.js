@@ -256,7 +256,6 @@ async function startPolling() {
       const url = `${BASE}/getUpdates?offset=${lastUpdate + 1}&timeout=2`;
       const res = await fetch(url);
       const data = await res.json();
-      console.log("[BOT] Response:", JSON.stringify(data)); // ← ADD THIS
 
       if (data.ok && data.result.length > 0) {
         for (const update of data.result) {
@@ -267,8 +266,6 @@ async function startPolling() {
         }
       }
     } catch (err) {
-      // Ignore transient network errors — keep polling
-      console.error("[BOT] Poll error:", err.message); // ← CHANGE THIS
     }
 
     setTimeout(poll, 3000);

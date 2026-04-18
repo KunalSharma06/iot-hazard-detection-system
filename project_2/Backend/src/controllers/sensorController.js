@@ -50,6 +50,7 @@ async function receiveData(req, res, next) {
     );
     // ════ END ORIGINAL ════
 
+    
     // ════ NEW — notification logic only, does NOT touch UI ════
     const currentAlerts = {
       flame: saved.alerts.fire,
