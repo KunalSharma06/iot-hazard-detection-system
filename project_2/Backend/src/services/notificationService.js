@@ -134,18 +134,23 @@ const DANGER_TEMPLATES = {
 // ── Offline and all-clear templates ──────────────────────────
 const SYSTEM_TEMPLATES = {
   offline: (roomId) =>
-    `📵 <b>SENSOR OFFLINE</b>\n` +
-    `📍 ${_room(roomId)}\n` +
+    `🚨 <b>ROOM ${roomId} OFFLINE — CRITICAL ALERT</b>\n` +
+    `📵 No sensor data received for more than 30 seconds.\n` +
+    `📍 Location: Room ${roomId}\n` +
     `🕐 ${_time()}\n\n` +
-    `No data received from ${_room(roomId)} for 10+ seconds.\n` +
-    `Check ESP32 power and WiFi connection.`,
+    `⚠️ Real-time monitoring has been interrupted.\n` +
+    `🔌 Check ESP32 power supply immediately.\n` +
+    `📶 Verify WiFi/network connectivity.\n` +
+    `🛠 Inspect device status and restart if required.\n\n` +
+    `⛑ Immediate action recommended to restore monitoring.`,
 
   allClear: (roomId) =>
     `✅ <b>ALL CLEAR — ${_room(roomId)}</b>\n` +
-    `📍 ${_room(roomId)}\n` +
+    `📍 Location: ${_room(roomId)}\n` +
     `🕐 ${_time()}\n\n` +
-    `All sensors back to normal in ${_room(roomId)}.\n` +
-    `Environment is safe ✅`,
+    `All sensor readings have returned to normal ranges.\n` +
+    `🟢 Monitoring status restored.\n` +
+    `🛡 Environment is now safe and stable.`,
 };
 
 // ── Public API ────────────────────────────────────────────────
