@@ -252,7 +252,7 @@ async function handleMessage(msg) {
     await sendTo(chatId, _buildRoomInfo(roomId));
     return;
   }
-  
+
   // ── Unknown command ───────────────────────────────────────
   await sendTo(
     chatId,
@@ -262,6 +262,7 @@ async function handleMessage(msg) {
 }
 
 // ── Long polling loop ─────────────────────────────────────────
+// ── Long polling loop ─────────────────────────────────────────
 async function startPolling() {
   if (!config.telegram.enabled) {
     console.log("[BOT] Telegram disabled in config — skipping");
@@ -270,9 +271,20 @@ async function startPolling() {
 
   console.log("[BOT] 🤖 Telegram bot started — polling for messages...");
 
+  // ← ADD THIS: skip all old messages on startup
+  try {
+    const url = `https://api.telegram.org/bot${config.telegram.token}/getUpdates?offset=-1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.ok && data.result.length > 0) {
+      lastUpdate = data.result[data.result.length - 1].update_id;
+      console.log(`[BOT] Skipped old messages, starting from update: ${lastUpdate}`);
+    }
+  } catch (err) {}
+
   async function poll() {
     try {
-      const url = `${BASE}/getUpdates?offset=${lastUpdate + 1}&timeout=2`;
+      const url = `https://api.telegram.org/bot${config.telegram.token}/getUpdates?offset=${lastUpdate + 1}&timeout=2`;
       const res = await fetch(url);
       const data = await res.json();
 
