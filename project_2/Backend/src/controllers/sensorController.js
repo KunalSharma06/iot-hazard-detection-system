@@ -2,9 +2,7 @@ const roomStore = require("../models/roomstore");
 const notificationService = require("../services/notificationService");
 const thresholds = require("../config/threshold");
 
-// Track previous alert state per room to detect changes
 const prevState = {};
-// Cooldown tracker
 const cooldown = {};
 
 async function receiveData(req, res, next) {
@@ -16,50 +14,63 @@ async function receiveData(req, res, next) {
       `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame} Status:${saved.overallStatus}`,
     );
 
-    // Current alert state
+    // ── Current LEVEL state (not just true/false) ────────
     const current = {
-      mq2: saved.mq2 >= thresholds.mq2.warn,
-      mq4: saved.mq4 >= thresholds.mq4.warn,
-      temp: saved.temp >= thresholds.temperature.warn,
-      flame: saved.flame === true,
+      mq2: getLevel(saved.mq2, thresholds.mq2.warn, thresholds.mq2.danger),
+      mq4: getLevel(saved.mq4, thresholds.mq4.warn, thresholds.mq4.danger),
+      temp: getLevel(
+        saved.temp,
+        thresholds.temperature.warn,
+        thresholds.temperature.danger,
+      ),
+      flame: saved.flame === true ? "danger" : "safe",
     };
 
-    // Previous state (default all false on first data)
+    // ── Previous state (all safe on first data) ──────────
     const prev = prevState[room] || {
-      mq2: false,
-      mq4: false,
-      temp: false,
-      flame: false,
+      mq2: "safe",
+      mq4: "safe",
+      temp: "safe",
+      flame: "safe",
     };
 
-    // ── Send alert only when state changes false → true ──
-    if (!prev.mq2 && current.mq2) {
-      const level = saved.mq2 >= thresholds.mq2.danger ? "danger" : "warning";
-      await sendIfReady(room, "mq2", saved, level);
+    // ── MQ2 ──────────────────────────────────────────────
+    if (current.mq2 !== "safe" && prev.mq2 !== current.mq2) {
+      await sendIfReady(room, "mq2", saved, current.mq2);
     }
-    if (!prev.mq4 && current.mq4) {
-      const level = saved.mq4 >= thresholds.mq4.danger ? "danger" : "warning";
-      await sendIfReady(room, "mq4", saved, level);
+
+    // ── MQ4 ──────────────────────────────────────────────
+    if (current.mq4 !== "safe" && prev.mq4 !== current.mq4) {
+      await sendIfReady(room, "mq4", saved, current.mq4);
     }
-    if (!prev.temp && current.temp) {
-      const level =
-        saved.temp >= thresholds.temperature.danger ? "danger" : "warning";
-      await sendIfReady(room, "temp", saved, level);
+
+    // ── TEMP ─────────────────────────────────────────────
+    if (current.temp !== "safe" && prev.temp !== current.temp) {
+      await sendIfReady(room, "temp", saved, current.temp);
     }
-    if (!prev.flame && current.flame) {
+
+    // ── FLAME ────────────────────────────────────────────
+    if (current.flame === "danger" && prev.flame !== "danger") {
       await sendIfReady(room, "flame", saved, "danger");
     }
 
-    // ── Send ALL CLEAR only when going from any alert → all safe ──
-    const wasAnyAlert = prev.mq2 || prev.mq4 || prev.temp || prev.flame;
+    // ── ALL CLEAR — any alert → all safe ─────────────────
+    const wasAnyAlert =
+      prev.mq2 !== "safe" ||
+      prev.mq4 !== "safe" ||
+      prev.temp !== "safe" ||
+      prev.flame !== "safe";
     const nowAllSafe =
-      !current.mq2 && !current.mq4 && !current.temp && !current.flame;
+      current.mq2 === "safe" &&
+      current.mq4 === "safe" &&
+      current.temp === "safe" &&
+      current.flame === "safe";
 
     if (wasAnyAlert && nowAllSafe) {
       await sendIfReady(room, "allclear", saved, "safe");
     }
 
-    // Save current state
+    // ── Save current state ────────────────────────────────
     prevState[room] = current;
 
     res.status(200).json({ ok: true, status: saved.overallStatus });
@@ -68,10 +79,17 @@ async function receiveData(req, res, next) {
   }
 }
 
+// Returns "safe", "warning", or "danger"
+function getLevel(value, warnAt, dangerAt) {
+  if (value >= dangerAt) return "danger";
+  if (value >= warnAt) return "warning";
+  return "safe";
+}
+
 async function sendIfReady(room, key, saved, level) {
   const id = `${room}_${key}`;
   const now = Date.now();
-  if (cooldown[id] && now - cooldown[id] < 60000) return; // 60s cooldown
+  if (cooldown[id] && now - cooldown[id] < 60000) return;
 
   if (key === "allclear") {
     await notificationService.sendAllClear(room);
