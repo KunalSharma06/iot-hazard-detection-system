@@ -245,15 +245,14 @@ async function handleMessage(msg) {
 
   // ── /info <roomId> — handles "info 1", "info 2", "info 3" ─
   // Also accepts "/system info 1" or just "info 1" for flexibility
-  const infoMatch =
-    text.match(/\/info\s+([1-3])/) ||
-    text.match(/(?:system\s+)?info\s+([1-3])/);
+  // ── /info <roomId> ───────────────────────────────────────
+  const infoMatch = text.match(/^\/info\s+([1-3])$/);
   if (infoMatch) {
     const roomId = parseInt(infoMatch[1]);
     await sendTo(chatId, _buildRoomInfo(roomId));
     return;
   }
-
+  
   // ── Unknown command ───────────────────────────────────────
   await sendTo(
     chatId,
