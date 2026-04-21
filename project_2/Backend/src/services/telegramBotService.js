@@ -147,7 +147,7 @@ async function handleMessage(msg) {
     const parts = text.split(/\s+/);
     const password = parts[1] || "";
 
-    if (password !== config.subscribePassword.toLowerCase()) {
+    if (password !== (config.subscribePassword || "system01").toLowerCase()) {
       await sendTo(
         chatId,
         `❌ <b>Wrong password.</b>\n\n` +

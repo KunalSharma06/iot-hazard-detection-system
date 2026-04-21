@@ -5,7 +5,7 @@ module.exports = {
   },
 
   // ← FIXED: was SUBSCRIBE_PASSWORD, now SUBSCRIBE_PASS
-  subscribePassword: process.env.SUBSCRIBE_PASS,
+  subscribePassword: process.env.SUBSCRIBE_PASSWORD || "system01",
 
   cooldownSeconds: 60,
 
