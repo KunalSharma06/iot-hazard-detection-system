@@ -49,5 +49,5 @@ module.exports = {
   },
 
   // Seconds before a room is marked "offline"
-  offlineAfterSeconds: 45,
+  offlineAfterSeconds: 30,
 };
