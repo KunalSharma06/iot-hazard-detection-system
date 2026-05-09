@@ -10,10 +10,10 @@ const RoomsPage = (() => {
     return "pill-safe";
   }
 
-  function _pillText(room) {
-    if (!room.online) return "Offline";
-    if (room.overallStatus === "danger") return "Alert!";
-    if (room.overallStatus === "warning") return "Warning";
+  function _pillText(status) {
+    if (status === "danger") return "Alert!";
+    if (status === "warning") return "Warning";
+    if (!status || status === "offline") return "OFF";
     return "Safe";
   }
 
@@ -34,6 +34,28 @@ const RoomsPage = (() => {
       const room1 = allRooms?.find((r) => r.room === 1);
       const room2 = allRooms?.find((r) => r.room === 2);
 
+      // Check if ANY data is received from Room 1 or 2
+      const hasData = room1?.online || room2?.online;
+
+      // Room 3 status should be based on the data it's receiving
+      let room3CompositeStatus = "offline";
+      if (hasData) {
+        // Check if either room has danger
+        if (
+          room1?.overallStatus === "danger" ||
+          room2?.overallStatus === "danger"
+        ) {
+          room3CompositeStatus = "danger";
+        } else if (
+          room1?.overallStatus === "warning" ||
+          room2?.overallStatus === "warning"
+        ) {
+          room3CompositeStatus = "warning";
+        } else {
+          room3CompositeStatus = "safe";
+        }
+      }
+
       // Helper function to get status class for each room
       const getRoomStatus = (r) => {
         if (!r || !r.online) return "offline";
@@ -43,7 +65,7 @@ const RoomsPage = (() => {
       const room1Status = getRoomStatus(room1);
       const room2Status = getRoomStatus(room2);
 
-      // Build Room 1 section with exact same UI as normal rooms
+      // Build Room 1 section
       const room1HTML = room1?.online
         ? `
         <div class="room-mini-grid">
@@ -73,9 +95,9 @@ const RoomsPage = (() => {
           </div>
         </div>
       `
-        : `<p class="offline-label">Room 1: No data received yet</p>`;
+        : `<p class="offline-label">Data not received</p>`;
 
-      // Build Room 2 section with exact same UI as normal rooms
+      // Build Room 2 section
       const room2HTML = room2?.online
         ? `
         <div class="room-mini-grid">
@@ -105,20 +127,22 @@ const RoomsPage = (() => {
           </div>
         </div>
       `
-        : `<p class="offline-label">Room 2: No data received yet</p>`;
+        : `<p class="offline-label">Data not received</p>`;
 
       card.innerHTML = `
         <div class="room-bg-number">3</div>
         <div class="room-card-top">
           <span class="room-label">Room 3 - Monitor</span>
-          <span class="room-status-pill ${_pillClass(status)}">${_pillText(room)}</span>
+          <span class="room-status-pill ${_pillClass(room3CompositeStatus)}">
+            ${_pillText(room3CompositeStatus)}
+          </span>
         </div>
         
         <div style="margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span class="room-label" style="font-size: 14px;">Room 1</span>
             <span class="room-status-pill ${_pillClass(room1Status)}" style="font-size: 9px; padding: 3px 8px;">
-              ${room1?.online ? (room1.overallStatus === "danger" ? "Alert!" : room1.overallStatus === "warning" ? "Warning" : "Safe") : "OFF"}
+              ${_pillText(room1Status)}
             </span>
           </div>
           ${room1HTML}
@@ -128,22 +152,22 @@ const RoomsPage = (() => {
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span class="room-label" style="font-size: 14px;">Room 2</span>
             <span class="room-status-pill ${_pillClass(room2Status)}" style="font-size: 9px; padding: 3px 8px;">
-              ${room2?.online ? (room2.overallStatus === "danger" ? "Alert!" : room2.overallStatus === "warning" ? "Warning" : "Safe") : "OFF"}
+              ${_pillText(room2Status)}
             </span>
           </div>
           ${room2HTML}
         </div>
       `;
 
-      // ✨ Room 3 IS NOW CLICKABLE - Navigate to combined view
-      if (room.online) {
+      // ✨ Room 3 IS NOW CLICKABLE if data is received
+      if (hasData) {
         card.addEventListener("click", () => onClickFn(room.room));
+        card.style.cursor = "pointer";
       }
       return card;
     }
 
     // Normal handling for Room 1 and Room 2
-    // Alert tags
     const alertTags = [];
     if (room.online && room.alerts) {
       if (room.alerts.fire) alertTags.push("Flame");
@@ -158,70 +182,69 @@ const RoomsPage = (() => {
 
     const statsHTML = room.online
       ? `
-      <div class="room-mini-grid">
-        <div class="mini-stat">
-          <span class="mini-stat-label">Temperature</span>
-          <span class="mini-stat-value ${_valueClass(room.levels?.temp)}">
-            ${room.temp?.toFixed(1) ?? "--"}°C
-          </span>
+        <div class="room-stats">
+          <div class="stat">
+            <span class="stat-label">Temperature</span>
+            <span class="stat-value ${_valueClass(room.levels?.temp)}">
+              ${room.temp?.toFixed(1) ?? "--"}°C
+            </span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Humidity</span>
+            <span class="stat-value ${_valueClass(room.levels?.humidity)}">
+              ${room.humidity?.toFixed(0) ?? "--"}%
+            </span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">MQ2 (LPG)</span>
+            <span class="stat-value ${_valueClass(room.levels?.mq2)}">
+              ${room.mq2 ?? "--"}
+            </span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">MQ4 (CH₄)</span>
+            <span class="stat-value ${_valueClass(room.levels?.mq4)}">
+              ${room.mq4 ?? "--"}
+            </span>
+          </div>
         </div>
-        <div class="mini-stat">
-          <span class="mini-stat-label">Humidity</span>
-          <span class="mini-stat-value ${_valueClass(room.levels?.humidity)}">
-            ${room.humidity?.toFixed(0) ?? "--"}%
-          </span>
-        </div>
-        <div class="mini-stat">
-          <span class="mini-stat-label">MQ2 (LPG)</span>
-          <span class="mini-stat-value ${_valueClass(room.levels?.mq2)}">
-            ${room.mq2 ?? "--"}
-          </span>
-        </div>
-        <div class="mini-stat">
-          <span class="mini-stat-label">MQ4 (CH₄)</span>
-          <span class="mini-stat-value ${_valueClass(room.levels?.mq4)}">
-            ${room.mq4 ?? "--"}
-          </span>
-        </div>
-      </div>
-      ${alertHTML}
-    `
-      : `<p class="offline-label">No data received yet</p>`;
+        ${alertHTML}
+      `
+      : '<p class="offline-msg">Waiting for data...</p>';
 
     card.innerHTML = `
       <div class="room-bg-number">${room.room}</div>
       <div class="room-card-top">
         <span class="room-label">Room ${room.room}</span>
-        <span class="room-status-pill ${_pillClass(status)}">${_pillText(room)}</span>
+        <span class="room-status-pill ${_pillClass(status)}">${_pillText(status)}</span>
       </div>
-      ${statsHTML}`;
+      ${statsHTML}
+    `;
 
-    if (room.online) {
-      card.addEventListener("click", () => onClickFn(room.room));
-    }
+    // Make cards clickable
+    card.addEventListener("click", () => onClickFn(room.room));
+    card.style.cursor = "pointer";
 
     return card;
   }
 
-  // ── Full render (first load) ─────────────────── //
+  // ── Rendering ────────────────────────────────── //
   function render(rooms, onClickFn) {
-    const grid = document.getElementById("room-grid");
-    grid.innerHTML = "";
-    rooms.forEach((r) => grid.appendChild(_buildCard(r, onClickFn, rooms)));
+    const roomsGrid = document.getElementById("rooms-grid");
+    roomsGrid.innerHTML = "";
+
+    // Add room 1, 2, 3 cards
+    for (const room of rooms) {
+      roomsGrid.appendChild(_buildCard(room, onClickFn, rooms));
+    }
   }
 
-  // ── Update existing cards in-place ──────────── //
   function update(rooms, onClickFn) {
-    const grid = document.getElementById("room-grid");
-    // If card count changed (shouldn't normally), full re-render
-    if (grid.children.length !== rooms.length) {
-      render(rooms, onClickFn);
-      return;
-    }
-    // Replace each card element
-    rooms.forEach((r, i) => {
-      const newCard = _buildCard(r, onClickFn, rooms);
-      grid.replaceChild(newCard, grid.children[i]);
+    const roomsGrid = document.getElementById("rooms-grid");
+    const cards = roomsGrid.querySelectorAll(".room-card");
+
+    cards.forEach((card, idx) => {
+      card.replaceWith(_buildCard(rooms[idx], onClickFn, rooms));
     });
   }
 
