@@ -200,6 +200,7 @@ const RoomsPage = (() => {
       card.addEventListener("click", () => onClickFn(room.room));
     }
 
+    card.addEventListener("click", () => onClickFn(room.room));
     return card;
   }
 
