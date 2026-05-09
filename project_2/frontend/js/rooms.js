@@ -230,7 +230,11 @@ const RoomsPage = (() => {
 
   // ── Rendering ────────────────────────────────── //
   function render(rooms, onClickFn) {
-    const roomsGrid = document.getElementById("rooms-grid");
+    const roomsGrid = document.getElementById("room-grid");
+    if (!roomsGrid) {
+      console.error("Element #room-grid not found in HTML");
+      return;
+    }
     roomsGrid.innerHTML = "";
 
     // Add room 1, 2, 3 cards
@@ -240,7 +244,11 @@ const RoomsPage = (() => {
   }
 
   function update(rooms, onClickFn) {
-    const roomsGrid = document.getElementById("rooms-grid");
+    const roomsGrid = document.getElementById("room-grid");
+    if (!roomsGrid) {
+      console.error("Element #room-grid not found in HTML");
+      return;
+    }
     const cards = roomsGrid.querySelectorAll(".room-card");
 
     cards.forEach((card, idx) => {

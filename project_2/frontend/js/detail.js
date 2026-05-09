@@ -17,7 +17,6 @@ const DetailPage = (() => {
   // ── Build gauge cards for a single room ─────── //
   function _buildRoomGauges(room, roomNum, grid) {
     const l = room.levels || {};
-    const roomClass = "gauge-room-section";
 
     // Create room header
     const roomHeader = document.createElement("div");
@@ -100,6 +99,10 @@ const DetailPage = (() => {
   // ── First render: build all gauge cards ─────── //
   function build(room) {
     const grid = document.getElementById("sensor-grid");
+    if (!grid) {
+      console.error("Element #sensor-grid not found");
+      return;
+    }
     grid.innerHTML = "";
     _built = false;
 
@@ -290,6 +293,8 @@ const DetailPage = (() => {
 
   function _updateBanner(room) {
     const banner = document.getElementById("status-banner");
+    if (!banner) return;
+
     if (room.overallStatus === "danger") {
       banner.className = "status-banner danger";
       const triggers = [];
@@ -312,6 +317,7 @@ const DetailPage = (() => {
 
   function _updateBannerRoom3(allRooms) {
     const banner = document.getElementById("status-banner");
+    if (!banner) return;
 
     // Check if any room has danger or warning
     const dangerRooms = allRooms.filter((r) => r.overallStatus === "danger");

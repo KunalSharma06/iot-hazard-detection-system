@@ -9,12 +9,14 @@
     DetailPage.reset();
     document.getElementById("rooms-page").classList.remove("hidden");
     document.getElementById("detail-page").classList.add("hidden");
+    firstLoad = true;
   }
 
   function showDetailPage(roomId) {
     currentRoom = roomId;
     document.getElementById("rooms-page").classList.add("hidden");
     document.getElementById("detail-page").classList.remove("hidden");
+    firstLoad = true;
   }
 
   // ── Polling ──────────────────────────────────── //
@@ -36,7 +38,9 @@
         if (firstLoad) {
           RoomsPage.render(rooms, showDetailPage);
           firstLoad = false;
-        } else RoomsPage.update(rooms, showDetailPage);
+        } else {
+          RoomsPage.update(rooms, showDetailPage);
+        }
       } else {
         // Detail page — find this room in the batch
         let room = rooms.find((r) => r.room === currentRoom);
@@ -48,7 +52,9 @@
           if (firstLoad) {
             DetailPage.build(room);
             firstLoad = false;
-          } else DetailPage.update(room);
+          } else {
+            DetailPage.update(room);
+          }
         }
       }
     } catch (err) {
@@ -59,10 +65,20 @@
 
   // ── Init ─────────────────────────────────────── //
   function init() {
-    document.getElementById("back-btn").addEventListener("click", () => {
-      firstLoad = true;
-      showRoomsPage();
-    });
+    // Verify elements exist
+    const backBtn = document.getElementById("back-btn");
+    const lastUpdateEl = document.getElementById("last-update");
+
+    if (!backBtn) {
+      console.error("Element #back-btn not found");
+      return;
+    }
+    if (!lastUpdateEl) {
+      console.error("Element #last-update not found");
+      return;
+    }
+
+    backBtn.addEventListener("click", showRoomsPage);
 
     poll(); // immediate first fetch
     pollInterval = setInterval(poll, 2000); // then every 2 seconds
