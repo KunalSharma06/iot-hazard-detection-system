@@ -135,7 +135,7 @@ const RoomsPage = (() => {
         </div>
       `;
 
-      // ✨ FIXED: Room 3 IS NOW CLICKABLE ✨
+      // ✨ Room 3 IS NOW CLICKABLE - Navigate to combined view
       if (room.online) {
         card.addEventListener("click", () => onClickFn(room.room));
       }

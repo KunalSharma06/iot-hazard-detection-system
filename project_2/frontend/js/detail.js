@@ -12,107 +12,34 @@ const DetailPage = (() => {
   };
 
   let _built = false;
+  let _isRoom3View = false;
 
-  // ── First render: build all gauge cards ─────── //
-  function build(room) {
-    const grid = document.getElementById("sensor-grid");
-    grid.innerHTML = "";
-    _built = false;
-
+  // ── Build gauge cards for a single room ─────── //
+  function _buildRoomGauges(room, roomNum, grid) {
     const l = room.levels || {};
+    const roomClass = "gauge-room-section";
 
-    // ✨ ADDED: Handle Room 3 (combined view of all 3 rooms) ✨
-    if (room.room === 3) {
-      // Get the data that was passed - it should contain all 3 rooms
-      const rooms = room.allRooms || [room];
-
-      // Display each room's data in the combined view
-      rooms.forEach((r) => {
-        if (!r) return;
-
-        const roomLevel = r.levels || {};
-        const roomDiv = document.createElement("div");
-        roomDiv.style.cssText =
-          "margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);";
-        roomDiv.innerHTML = `<h3 style="margin: 0 0 12px 0; font-size: 18px; color: var(--text);">Room ${r.room}</h3>`;
-
-        // Create a mini grid for each room
-        const miniGrid = document.createElement("div");
-        miniGrid.className = "room-mini-grid";
-
-        // Temperature
-        miniGrid.appendChild(
-          Gauge.buildCard({
-            id: `temp-room${r.room}`,
-            label: "Temperature",
-            value: r.temp?.toFixed(1),
-            unit: "°C",
-            pct: PCT.temp(r.temp || 0),
-            level: roomLevel.temp || "safe",
-          }),
-        );
-
-        // Humidity
-        miniGrid.appendChild(
-          Gauge.buildCard({
-            id: `hum-room${r.room}`,
-            label: "Humidity",
-            value: r.humidity?.toFixed(0),
-            unit: "%",
-            pct: PCT.humidity(r.humidity || 0),
-            level: roomLevel.humidity || "safe",
-          }),
-        );
-
-        // MQ2
-        miniGrid.appendChild(
-          Gauge.buildCard({
-            id: `mq2-room${r.room}`,
-            label: "LPG / Smoke  (MQ2)",
-            value: r.mq2,
-            unit: "ADC",
-            pct: PCT.mq2(r.mq2 || 0),
-            level: roomLevel.mq2 || "safe",
-          }),
-        );
-
-        // MQ4
-        miniGrid.appendChild(
-          Gauge.buildCard({
-            id: `mq4-room${r.room}`,
-            label: "Methane / CNG  (MQ4)",
-            value: r.mq4,
-            unit: "ADC",
-            pct: PCT.mq4(r.mq4 || 0),
-            level: roomLevel.mq4 || "safe",
-          }),
-        );
-
-        // Flame
-        miniGrid.appendChild(Gauge.buildFlameCard(r.flame));
-
-        // Air quality
-        miniGrid.appendChild(
-          Gauge.buildAirCard(r.airQuality || "Clean", roomLevel.mq2 || "safe"),
-        );
-
-        roomDiv.appendChild(miniGrid);
-        grid.appendChild(roomDiv);
-      });
-
-      _built = true;
-      _updateBannerRoom3(rooms);
-      document.getElementById("detail-title").textContent = "All Rooms Monitor";
-      document.getElementById("detail-sub").textContent =
-        "Live view of all 3 rooms";
-      return;
-    }
-    // ✨ END: Room 3 handling ✨
+    // Create room header
+    const roomHeader = document.createElement("div");
+    roomHeader.className = "room-header";
+    roomHeader.style.cssText = `
+      grid-column: 1 / -1;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #00ff88;
+      border-left: 4px solid #00ff88;
+    `;
+    roomHeader.textContent = `Room ${roomNum}`;
+    grid.appendChild(roomHeader);
 
     // Temperature
     grid.appendChild(
       Gauge.buildCard({
-        id: "temp",
+        id: `temp-room${roomNum}`,
         label: "Temperature",
         value: room.temp?.toFixed(1),
         unit: "°C",
@@ -124,7 +51,7 @@ const DetailPage = (() => {
     // Humidity
     grid.appendChild(
       Gauge.buildCard({
-        id: "hum",
+        id: `hum-room${roomNum}`,
         label: "Humidity",
         value: room.humidity?.toFixed(0),
         unit: "%",
@@ -136,7 +63,7 @@ const DetailPage = (() => {
     // MQ2
     grid.appendChild(
       Gauge.buildCard({
-        id: "mq2",
+        id: `mq2-room${roomNum}`,
         label: "LPG / Smoke  (MQ2)",
         value: room.mq2,
         unit: "ADC",
@@ -148,7 +75,7 @@ const DetailPage = (() => {
     // MQ4
     grid.appendChild(
       Gauge.buildCard({
-        id: "mq4",
+        id: `mq4-room${roomNum}`,
         label: "Methane / CNG  (MQ4)",
         value: room.mq4,
         unit: "ADC",
@@ -158,20 +85,117 @@ const DetailPage = (() => {
     );
 
     // Flame
-    grid.appendChild(Gauge.buildFlameCard(room.flame));
+    grid.appendChild(Gauge.buildFlameCard(room.flame, `flame-room${roomNum}`));
 
     // Air quality
     grid.appendChild(
-      Gauge.buildAirCard(room.airQuality || "Clean", l.mq2 || "safe"),
+      Gauge.buildAirCard(
+        room.airQuality || "Clean",
+        l.mq2 || "safe",
+        `air-room${roomNum}`,
+      ),
     );
+  }
+
+  // ── First render: build all gauge cards ─────── //
+  function build(room) {
+    const grid = document.getElementById("sensor-grid");
+    grid.innerHTML = "";
+    _built = false;
+
+    // Check if this is Room 3 (combined view of all rooms)
+    if (room.room === 3 && room.allRooms) {
+      _isRoom3View = true;
+      const allRooms = room.allRooms;
+
+      // Build gauges for each room
+      for (let i = 1; i <= 3; i++) {
+        const r = allRooms.find((ar) => ar.room === i) || {
+          room: i,
+          online: false,
+          temp: 0,
+          humidity: 0,
+          mq2: 0,
+          mq4: 0,
+          flame: 0,
+          levels: {},
+        };
+        _buildRoomGauges(r, i, grid);
+      }
+
+      document.getElementById("detail-title").textContent = "All Rooms Monitor";
+      document.getElementById("detail-sub").textContent =
+        "Live monitoring of all 3 rooms";
+      _updateBannerRoom3(allRooms);
+    } else {
+      // Single room view (Room 1 or Room 2)
+      _isRoom3View = false;
+      const l = room.levels || {};
+
+      // Temperature
+      grid.appendChild(
+        Gauge.buildCard({
+          id: "temp",
+          label: "Temperature",
+          value: room.temp?.toFixed(1),
+          unit: "°C",
+          pct: PCT.temp(room.temp || 0),
+          level: l.temp || "safe",
+        }),
+      );
+
+      // Humidity
+      grid.appendChild(
+        Gauge.buildCard({
+          id: "hum",
+          label: "Humidity",
+          value: room.humidity?.toFixed(0),
+          unit: "%",
+          pct: PCT.humidity(room.humidity || 0),
+          level: l.humidity || "safe",
+        }),
+      );
+
+      // MQ2
+      grid.appendChild(
+        Gauge.buildCard({
+          id: "mq2",
+          label: "LPG / Smoke  (MQ2)",
+          value: room.mq2,
+          unit: "ADC",
+          pct: PCT.mq2(room.mq2 || 0),
+          level: l.mq2 || "safe",
+        }),
+      );
+
+      // MQ4
+      grid.appendChild(
+        Gauge.buildCard({
+          id: "mq4",
+          label: "Methane / CNG  (MQ4)",
+          value: room.mq4,
+          unit: "ADC",
+          pct: PCT.mq4(room.mq4 || 0),
+          level: l.mq4 || "safe",
+        }),
+      );
+
+      // Flame
+      grid.appendChild(Gauge.buildFlameCard(room.flame));
+
+      // Air quality
+      grid.appendChild(
+        Gauge.buildAirCard(room.airQuality || "Clean", l.mq2 || "safe"),
+      );
+
+      _updateBanner(room);
+      document.getElementById("detail-title").textContent = `Room ${room.room}`;
+      document.getElementById("detail-sub").textContent = room.online
+        ? "Live · updates every 2 seconds"
+        : "Offline — last known data shown";
+    }
 
     _built = true;
-
-    _updateBanner(room);
-    document.getElementById("detail-title").textContent = `Room ${room.room}`;
-    document.getElementById("detail-sub").textContent = room.online
-      ? "Live · updates every 2 seconds"
-      : "Offline — last known data shown";
   }
 
   // ── Subsequent updates: patch values in-place ─ //
@@ -181,88 +205,87 @@ const DetailPage = (() => {
       return;
     }
 
-    // ✨ ADDED: Handle Room 3 updates ✨
-    if (room.room === 3 && room.allRooms) {
-      // For Room 3, rebuild since we have all rooms data
-      const rooms = room.allRooms;
-      const grid = document.getElementById("sensor-grid");
+    if (_isRoom3View && room.allRooms) {
+      // Update all rooms
+      const allRooms = room.allRooms;
+      for (let i = 1; i <= 3; i++) {
+        const r = allRooms.find((ar) => ar.room === i);
+        if (r) {
+          const l = r.levels || {};
+          Gauge.updateCard(
+            `temp-room${i}`,
+            r.temp?.toFixed(1),
+            "°C",
+            PCT.temp(r.temp || 0),
+            l.temp || "safe",
+          );
+          Gauge.updateCard(
+            `hum-room${i}`,
+            r.humidity?.toFixed(0),
+            "%",
+            PCT.humidity(r.humidity || 0),
+            l.humidity || "safe",
+          );
+          Gauge.updateCard(
+            `mq2-room${i}`,
+            r.mq2,
+            "ADC",
+            PCT.mq2(r.mq2 || 0),
+            l.mq2 || "safe",
+          );
+          Gauge.updateCard(
+            `mq4-room${i}`,
+            r.mq4,
+            "ADC",
+            PCT.mq4(r.mq4 || 0),
+            l.mq4 || "safe",
+          );
+          Gauge.updateFlameCard(r.flame, `flame-room${i}`);
+          Gauge.updateAirCard(
+            r.airQuality || "Clean",
+            l.mq2 || "safe",
+            `air-room${i}`,
+          );
+        }
+      }
+      _updateBannerRoom3(allRooms);
+    } else {
+      // Single room update
+      const l = room.levels || {};
 
-      rooms.forEach((r, idx) => {
-        if (!r) return;
-        const roomLevel = r.levels || {};
+      Gauge.updateCard(
+        "temp",
+        room.temp?.toFixed(1),
+        "°C",
+        PCT.temp(room.temp || 0),
+        l.temp || "safe",
+      );
+      Gauge.updateCard(
+        "hum",
+        room.humidity?.toFixed(0),
+        "%",
+        PCT.humidity(room.humidity || 0),
+        l.humidity || "safe",
+      );
+      Gauge.updateCard(
+        "mq2",
+        room.mq2,
+        "ADC",
+        PCT.mq2(room.mq2 || 0),
+        l.mq2 || "safe",
+      );
+      Gauge.updateCard(
+        "mq4",
+        room.mq4,
+        "ADC",
+        PCT.mq4(room.mq4 || 0),
+        l.mq4 || "safe",
+      );
+      Gauge.updateFlameCard(room.flame);
+      Gauge.updateAirCard(room.airQuality || "Clean", l.mq2 || "safe");
 
-        // Update each room's gauges
-        Gauge.updateCard(
-          `temp-room${r.room}`,
-          r.temp?.toFixed(1),
-          "°C",
-          PCT.temp(r.temp || 0),
-          roomLevel.temp || "safe",
-        );
-        Gauge.updateCard(
-          `hum-room${r.room}`,
-          r.humidity?.toFixed(0),
-          "%",
-          PCT.humidity(r.humidity || 0),
-          roomLevel.humidity || "safe",
-        );
-        Gauge.updateCard(
-          `mq2-room${r.room}`,
-          r.mq2,
-          "ADC",
-          PCT.mq2(r.mq2 || 0),
-          roomLevel.mq2 || "safe",
-        );
-        Gauge.updateCard(
-          `mq4-room${r.room}`,
-          r.mq4,
-          "ADC",
-          PCT.mq4(r.mq4 || 0),
-          roomLevel.mq4 || "safe",
-        );
-        Gauge.updateFlameCard(r.flame);
-        Gauge.updateAirCard(r.airQuality || "Clean", roomLevel.mq2 || "safe");
-      });
-
-      _updateBannerRoom3(rooms);
-      return;
+      _updateBanner(room);
     }
-    // ✨ END: Room 3 updates ✨
-
-    const l = room.levels || {};
-
-    Gauge.updateCard(
-      "temp",
-      room.temp?.toFixed(1),
-      "°C",
-      PCT.temp(room.temp || 0),
-      l.temp || "safe",
-    );
-    Gauge.updateCard(
-      "hum",
-      room.humidity?.toFixed(0),
-      "%",
-      PCT.humidity(room.humidity || 0),
-      l.humidity || "safe",
-    );
-    Gauge.updateCard(
-      "mq2",
-      room.mq2,
-      "ADC",
-      PCT.mq2(room.mq2 || 0),
-      l.mq2 || "safe",
-    );
-    Gauge.updateCard(
-      "mq4",
-      room.mq4,
-      "ADC",
-      PCT.mq4(room.mq4 || 0),
-      l.mq4 || "safe",
-    );
-    Gauge.updateFlameCard(room.flame);
-    Gauge.updateAirCard(room.airQuality || "Clean", l.mq2 || "safe");
-
-    _updateBanner(room);
   }
 
   function _updateBanner(room) {
@@ -287,36 +310,33 @@ const DetailPage = (() => {
     }
   }
 
-  // ✨ ADDED: Banner update for Room 3 (all rooms) ✨
-  function _updateBannerRoom3(rooms) {
+  function _updateBannerRoom3(allRooms) {
     const banner = document.getElementById("status-banner");
-    const hasAnyDanger = rooms.some((r) => r.overallStatus === "danger");
-    const hasAnyWarning = rooms.some((r) => r.overallStatus === "warning");
 
-    if (hasAnyDanger) {
+    // Check if any room has danger or warning
+    const dangerRooms = allRooms.filter((r) => r.overallStatus === "danger");
+    const warningRooms = allRooms.filter((r) => r.overallStatus === "warning");
+
+    if (dangerRooms.length > 0) {
       banner.className = "status-banner danger";
-      const dangerRooms = rooms
-        .filter((r) => r.overallStatus === "danger")
-        .map((r) => `Room ${r.room}`);
-      banner.innerHTML = `<span class="banner-icon">🚨</span> DANGER IN ${dangerRooms.join(", ")}`;
+      const roomNums = dangerRooms.map((r) => `Room ${r.room}`).join(", ");
+      banner.innerHTML = `<span class="banner-icon">🚨</span> DANGER in ${roomNums}`;
       banner.classList.remove("hidden");
-    } else if (hasAnyWarning) {
+    } else if (warningRooms.length > 0) {
       banner.className = "status-banner warning";
-      const warningRooms = rooms
-        .filter((r) => r.overallStatus === "warning")
-        .map((r) => `Room ${r.room}`);
-      banner.innerHTML = `<span class="banner-icon">⚠️</span> WARNING IN ${warningRooms.join(", ")}`;
+      const roomNums = warningRooms.map((r) => `Room ${r.room}`).join(", ");
+      banner.innerHTML = `<span class="banner-icon">⚠️</span> WARNING in ${roomNums}`;
       banner.classList.remove("hidden");
     } else {
       banner.className = "status-banner safe";
-      banner.innerHTML = `<span class="banner-icon">✅</span> All rooms normal`;
+      banner.innerHTML = `<span class="banner-icon">✅</span> All sensors normal in all rooms`;
       banner.classList.remove("hidden");
     }
   }
-  // ✨ END: Room 3 banner function ✨
 
   function reset() {
     _built = false;
+    _isRoom3View = false;
   }
 
   return { build, update, reset };
