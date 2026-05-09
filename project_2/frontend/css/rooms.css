@@ -143,10 +143,17 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 24px;
+  min-height: 320px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
+}
+
+
+.room-card.monitor-card {
+  min-height: auto !important;
+  height: auto !important;
 }
 
 /* Top accent line */

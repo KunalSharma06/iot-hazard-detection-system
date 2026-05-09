@@ -26,7 +26,10 @@ const RoomsPage = (() => {
   function _buildCard(room, onClickFn, allRooms) {
     const status = room.online ? room.overallStatus || "safe" : "offline";
     const card = document.createElement("div");
-    card.className = `room-card ${status}`;
+    card.className =
+      room.room === 3
+        ? `room-card monitor-card ${status}`
+        : `room-card ${status}`;
 
     // Special handling for Room 3 (Display Unit showing Room 1 & 2 data)
     if (room.room === 3) {
