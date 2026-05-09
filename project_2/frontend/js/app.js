@@ -39,7 +39,14 @@
         } else RoomsPage.update(rooms, showDetailPage);
       } else {
         // Detail page — find this room in the batch
-        const room = rooms.find((r) => r.room === currentRoom);
+        let room = rooms.find((r) => r.room === currentRoom);
+
+        // ✨ ADDED: If viewing Room 3 (all rooms), pass the full rooms array ✨
+        if (currentRoom === 3 && room) {
+          room = { ...room, allRooms: rooms };
+        }
+        // ✨ END: Room 3 handling ✨
+
         if (room) {
           if (firstLoad) {
             DetailPage.build(room);

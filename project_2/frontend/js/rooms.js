@@ -135,7 +135,11 @@ const RoomsPage = (() => {
         </div>
       `;
 
-      return card; // Room 3 is not clickable
+      // ✨ FIXED: Room 3 IS NOW CLICKABLE ✨
+      if (room.online) {
+        card.addEventListener("click", () => onClickFn(room.room));
+      }
+      return card;
     }
 
     // Normal handling for Room 1 and Room 2
