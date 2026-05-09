@@ -107,45 +107,49 @@ const DetailPage = (() => {
     _built = false;
 
     // ───────── ROOM 3 MAIN MONITOR ─────────
-   if (room.room === 3) {
-     document.getElementById("detail-title").textContent =
-       "Room 3 - Main Monitor";
+    /* ========= REPLACE COMPLETE ROOM 3 BLOCK INSIDE build(room) ========= */
 
-     document.getElementById("detail-sub").textContent =
-       "Showing Room 1 & Room 2 Live Data";
+    if (room.room === 3) {
+      _isRoom3View = true;
 
-     const room1 = room.roomsData?.room1;
-     const room2 = room.roomsData?.room2;
+      document.getElementById("detail-title").textContent =
+        "Room 3 - Main Monitor";
 
-     // CLEAR GRID
-     grid.innerHTML = "";
+      document.getElementById("detail-sub").textContent =
+        "Showing Room 1 & Room 2 Live Data";
 
-     function showRoom(roomData, roomName) {
-       // ROOM TITLE
-       const title = document.createElement("div");
-       title.style.gridColumn = "1 / -1";
-       title.style.margin = "10px 0 5px";
+      grid.innerHTML = "";
 
-       title.innerHTML = `
+      const room1 = room.roomsData?.room1;
+      const room2 = room.roomsData?.room2;
+
+      function showRoom(roomData, roomNum) {
+        // ROOM TITLE
+        const title = document.createElement("div");
+
+        title.style.gridColumn = "1 / -1";
+        title.style.margin = "10px 0 5px";
+
+        title.innerHTML = `
       <h2 style="
         font-size:28px;
         font-weight:700;
         color:white;
       ">
-        ${roomName}
+        Room ${roomNum}
       </h2>
     `;
 
-       grid.appendChild(title);
+        grid.appendChild(title);
 
-       // NO DATA
-       if (!roomData || !roomData.online) {
-         const noData = document.createElement("div");
+        // NO DATA
+        if (!roomData || !roomData.online) {
+          const noData = document.createElement("div");
 
-         noData.className = "gauge-card";
-         noData.style.gridColumn = "1 / -1";
+          noData.className = "gauge-card";
+          noData.style.gridColumn = "1 / -1";
 
-         noData.innerHTML = `
+          noData.innerHTML = `
         <div style="
           height:220px;
           display:flex;
@@ -159,78 +163,86 @@ const DetailPage = (() => {
         </div>
       `;
 
-         grid.appendChild(noData);
-         return;
-       }
+          grid.appendChild(noData);
+          return;
+        }
 
-       const l = roomData.levels || {};
+        const l = roomData.levels || {};
 
-       // TEMP
-       grid.appendChild(
-         Gauge.buildCard({
-           id: `${roomName}-temp`,
-           label: "Temperature",
-           value: roomData.temp?.toFixed(1),
-           unit: "°C",
-           pct: PCT.temp(roomData.temp || 0),
-           level: l.temp || "safe",
-         }),
-       );
+        // TEMPERATURE
+        grid.appendChild(
+          Gauge.buildCard({
+            id: `temp-room${roomNum}`,
+            label: "Temperature",
+            value: roomData.temp?.toFixed(1),
+            unit: "°C",
+            pct: PCT.temp(roomData.temp || 0),
+            level: l.temp || "safe",
+          }),
+        );
 
-       // HUMIDITY
-       grid.appendChild(
-         Gauge.buildCard({
-           id: `${roomName}-hum`,
-           label: "Humidity",
-           value: roomData.humidity?.toFixed(0),
-           unit: "%",
-           pct: PCT.humidity(roomData.humidity || 0),
-           level: l.humidity || "safe",
-         }),
-       );
+        // HUMIDITY
+        grid.appendChild(
+          Gauge.buildCard({
+            id: `hum-room${roomNum}`,
+            label: "Humidity",
+            value: roomData.humidity?.toFixed(0),
+            unit: "%",
+            pct: PCT.humidity(roomData.humidity || 0),
+            level: l.humidity || "safe",
+          }),
+        );
 
-       // MQ2
-       grid.appendChild(
-         Gauge.buildCard({
-           id: `${roomName}-mq2`,
-           label: "LPG / Smoke (MQ2)",
-           value: roomData.mq2,
-           unit: "ADC",
-           pct: PCT.mq2(roomData.mq2 || 0),
-           level: l.mq2 || "safe",
-         }),
-       );
+        // MQ2
+        grid.appendChild(
+          Gauge.buildCard({
+            id: `mq2-room${roomNum}`,
+            label: "LPG / Smoke (MQ2)",
+            value: roomData.mq2,
+            unit: "ADC",
+            pct: PCT.mq2(roomData.mq2 || 0),
+            level: l.mq2 || "safe",
+          }),
+        );
 
-       // MQ4
-       grid.appendChild(
-         Gauge.buildCard({
-           id: `${roomName}-mq4`,
-           label: "Methane / CNG (MQ4)",
-           value: roomData.mq4,
-           unit: "ADC",
-           pct: PCT.mq4(roomData.mq4 || 0),
-           level: l.mq4 || "safe",
-         }),
-       );
+        // MQ4
+        grid.appendChild(
+          Gauge.buildCard({
+            id: `mq4-room${roomNum}`,
+            label: "Methane / CNG (MQ4)",
+            value: roomData.mq4,
+            unit: "ADC",
+            pct: PCT.mq4(roomData.mq4 || 0),
+            level: l.mq4 || "safe",
+          }),
+        );
 
-       // FLAME
-       grid.appendChild(Gauge.buildFlameCard(roomData.flame));
+        // FLAME
+        grid.appendChild(
+          Gauge.buildFlameCard(roomData.flame, `flame-room${roomNum}`),
+        );
 
-       // AIR
-       grid.appendChild(
-         Gauge.buildAirCard(roomData.airQuality || "Clean", l.mq2 || "safe"),
-       );
-     }
+        // AIR QUALITY
+        grid.appendChild(
+          Gauge.buildAirCard(
+            roomData.airQuality || "Clean",
+            l.mq2 || "safe",
+            `air-room${roomNum}`,
+          ),
+        );
+      }
 
-     // ROOM 1
-     showRoom(room1, "Room 1");
+      // ROOM 1
+      showRoom(room1, 1);
 
-     // ROOM 2
-     showRoom(room2, "Room 2");
+      // ROOM 2
+      showRoom(room2, 2);
 
-     _built = true;
-     return;
-   }
+      _updateBannerRoom3([room1, room2].filter(Boolean));
+
+      _built = true;
+      return;
+    }
 
     const l = room.levels || {};
 
@@ -301,10 +313,12 @@ const DetailPage = (() => {
       return;
     }
 
-    if (_isRoom3View && room.allRooms) {
+    if (_isRoom3View && room.roomsData) {
       // Update all rooms
-      const allRooms = room.allRooms;
-      for (let i = 1; i <= 3; i++) {
+      const allRooms = [room.roomsData.room1, room.roomsData.room2].filter(
+        Boolean,
+      );
+      for (let i = 1; i <= 2; i++) {
         const r = allRooms.find((ar) => ar.room === i);
         if (r) {
           const l = r.levels || {};
