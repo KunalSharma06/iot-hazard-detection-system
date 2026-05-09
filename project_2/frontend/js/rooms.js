@@ -49,66 +49,45 @@ const RoomsPage = (() => {
       // Build Room 1 section with exact same UI as normal rooms
       const room1HTML = room1?.online
         ? `
-        <div class="room-mini-grid">
-          <div class="mini-stat">
-            <span class="mini-stat-label">Temperature</span>
-            <span class="mini-stat-value ${_valueClass(room1.levels?.temp)}">
-              ${room1.temp?.toFixed(1) ?? "--"}°C
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">Humidity</span>
-            <span class="mini-stat-value ${_valueClass(room1.levels?.humidity)}">
-              ${room1.humidity?.toFixed(0) ?? "--"}%
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">MQ2 (LPG)</span>
-            <span class="mini-stat-value ${_valueClass(room1.levels?.mq2)}">
-              ${room1.mq2 ?? "--"}
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">MQ4 (CH₄)</span>
-            <span class="mini-stat-value ${_valueClass(room1.levels?.mq4)}">
-              ${room1.mq4 ?? "--"}
-            </span>
-          </div>
-        </div>
-      `
-        : `<p class="offline-label">Room 1: No data received yet</p>`;
+      <div style="
+        color:#00ff88;
+        font-size:14px;
+        margin-top:6px;
+      ">
+        Room 1 data received
+      </div>
+    `
+        : `
+      <div style="
+        color:#ff6b6b;
+        font-size:14px;
+        margin-top:6px;
+      ">
+        No data received
+      </div>
+    `;
 
       // Build Room 2 section with exact same UI as normal rooms
-      const room2HTML = room2?.online
-        ? `
-        <div class="room-mini-grid">
-          <div class="mini-stat">
-            <span class="mini-stat-label">Temperature</span>
-            <span class="mini-stat-value ${_valueClass(room2.levels?.temp)}">
-              ${room2.temp?.toFixed(1) ?? "--"}°C
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">Humidity</span>
-            <span class="mini-stat-value ${_valueClass(room2.levels?.humidity)}">
-              ${room2.humidity?.toFixed(0) ?? "--"}%
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">MQ2 (LPG)</span>
-            <span class="mini-stat-value ${_valueClass(room2.levels?.mq2)}">
-              ${room2.mq2 ?? "--"}
-            </span>
-          </div>
-          <div class="mini-stat">
-            <span class="mini-stat-label">MQ4 (CH₄)</span>
-            <span class="mini-stat-value ${_valueClass(room2.levels?.mq4)}">
-              ${room2.mq4 ?? "--"}
-            </span>
-          </div>
-        </div>
-      `
-        : `<p class="offline-label">Room 2: No data received yet</p>`;
+      
+const room2HTML = room2?.online
+  ? `
+      <div style="
+        color:#00ff88;
+        font-size:14px;
+        margin-top:6px;
+      ">
+        Room 2 data received
+      </div>
+    `
+  : `
+      <div style="
+        color:#ff6b6b;
+        font-size:14px;
+        margin-top:6px;
+      ">
+        No data received
+      </div>
+    `;
 
       card.innerHTML = `
         <div class="room-bg-number">3</div>
