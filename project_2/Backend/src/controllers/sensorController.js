@@ -2,6 +2,35 @@ const roomStore = require("../models/roomstore");
 const notificationService = require("../services/notificationService");
 const thresholds = require("../config/threshold");
 
+// At the top of your file
+const alertTracker = require("../models/alertTracker");
+const notificationService = require("../services/notificationService");
+
+// Add this function to check offline status
+async function monitorOfflineStatus(roomId) {
+  const thresholds = require("../config/threshold");
+  const roomStore = require("../models/roomstore");
+  
+  const room = roomStore.getRoom(roomId);
+  const isCurrentlyOffline = !room || (Date.now() - room.lastSeen > thresholds.offlineAfterSeconds * 1000);
+  
+  // This tracks state and returns true ONLY on transition: online → offline
+  const justWentOffline = alertTracker.setOffline(roomId, isCurrentlyOffline);
+  
+  if (justWentOffline) {
+    console.log(`[OFFLINE ALERT] Room ${roomId} is now OFFLINE`);
+    await notificationService.sendOfflineAlert(roomId);
+  }
+}
+
+// Call monitorOfflineStatus(roomId) periodically in your main loop
+// Example: every 5 seconds check each room
+setInterval(async () => {
+  for (let roomId = 1; roomId <= 2; roomId++) {
+    await monitorOfflineStatus(roomId);
+  }
+}, 5000);
+
 const prevState = {};
 
 async function receiveData(req, res, next) {

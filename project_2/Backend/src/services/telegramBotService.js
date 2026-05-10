@@ -136,7 +136,11 @@ async function handleMessage(msg) {
         `<code>/status</code> — System info + your subscription\n` +
         `<code>/info 1</code> — Live data for Room 1\n` +
         `<code>/info 2</code> — Live data for Room 2\n` +
-        `<code>/info 3</code> — Live data for Room 3\n\n` +
+        `<code>/info 3</code> — Live data for ALL ROOMS (combined)\n\n` +
+        `<b>Features:</b>\n` +
+        `✅ Real-time sensor alerts\n` +
+        `📵 Offline detection with alerts\n` +
+        `📊 Live data on demand\n\n` +
         `To start, type:\n<code>/subscribe ${config.subscribePassword}</code>`,
     );
     return;
@@ -246,11 +250,84 @@ async function handleMessage(msg) {
   // ── /info <roomId> — handles "info 1", "info 2", "info 3" ─
   // Also accepts "/system info 1" or just "info 1" for flexibility
   // ── /info <roomId> ───────────────────────────────────────
+  // ── /info <roomId> ───────────────────────────────────────────
   const infoMatch = text.match(/^\/info\s+([1-3])$/);
   if (infoMatch) {
     const roomId = parseInt(infoMatch[1]);
-    await sendTo(chatId, _buildRoomInfo(roomId));
+
+    // Special case: /info 3 shows ALL rooms in one message
+    if (roomId === 3) {
+      const store = getRoomStore();
+      const allRooms = store.getAllRooms(2); // Get rooms 1 & 2
+
+      const combinedMsg = _buildCombinedRoomsInfo(allRooms);
+      await sendTo(chatId, combinedMsg);
+    } else {
+      // /info 1 or /info 2 — show individual room
+      await sendTo(chatId, _buildRoomInfo(roomId));
+    }
     return;
+  }
+
+  // ── New function: Build combined info for all rooms ─────────────
+  function _buildCombinedRoomsInfo(allRooms) {
+    let msg = `📊 <b>ALL ROOMS — Live Data Summary</b>\n`;
+    msg += `🕐 ${new Date().toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    for (const room of allRooms) {
+      if (!room.online) {
+        msg += `🚨 <b>ROOM ${room.room} — OFFLINE</b>\n`;
+        msg += `📵 No data received yet\n`;
+        msg += `⚠️ Check ESP32 connectivity\n\n`;
+      } else {
+        const l = room.levels || {};
+        const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+
+        const activeAlerts = [];
+        if (room.alerts?.fire) activeAlerts.push("🔥 Flame detected");
+        if (room.alerts?.mq2) activeAlerts.push("💨 LPG elevated");
+        if (room.alerts?.mq4) activeAlerts.push("⛽ Methane elevated");
+        if (room.alerts?.temp) activeAlerts.push("🌡 Temp high");
+
+        const statusEmoji =
+          room.overallStatus === "danger"
+            ? "🔴"
+            : room.overallStatus === "warning"
+              ? "🟡"
+              : "🟢";
+
+        msg += `📊 <b>ROOM ${room.room}</b> — ${statusEmoji} ${room.overallStatus.toUpperCase()}\n`;
+        msg += `🕐 ${time}\n`;
+        msg += `🌡 Temp: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>  `;
+        msg += `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n`;
+        msg += `💨 MQ2: ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>  `;
+        msg += `⛽ MQ4: ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n`;
+        msg += `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n`;
+
+        if (activeAlerts.length > 0) {
+          msg += `⚠️ <b>Active Alerts:</b> ${activeAlerts.join(" | ")}\n`;
+        }
+        msg += `\n`;
+      }
+    }
+
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `💡 Details: /info 1  •  /info 2`;
+
+    return msg;
   }
 
   // ── Unknown command ───────────────────────────────────────
