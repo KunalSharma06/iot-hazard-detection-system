@@ -270,129 +270,64 @@ async function handleMessage(msg) {
   }
 
   // ── New function: Build combined info for all rooms ─────────────
-  // function _buildCombinedRoomsInfo(allRooms) {
-  //   let msg = `📊 <b>ALL ROOMS — Live Data Summary</b>\n`;
-  //   msg += `🕐 ${new Date().toLocaleTimeString("en-IN", {
-  //     timeZone: "Asia/Kolkata",
-  //     hour: "2-digit",
-  //     minute: "2-digit",
-  //     second: "2-digit",
-  //     hour12: true,
-  //   })}\n`;
-  //   msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  function _buildCombinedRoomsInfo(allRooms) {
+    let msg = `📊 <b>ALL ROOMS — Live Data Summary</b>\n`;
+    msg += `🕐 ${new Date().toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-  //   for (const room of allRooms) {
-  //     if (!room.online) {
-  //       msg += `🚨 <b>ROOM ${room.room} — OFFLINE</b>\n`;
-  //       msg += `📵 No data received yet\n`;
-  //       msg += `⚠️ Check ESP32 connectivity\n\n`;
-  //     } else {
-  //       const l = room.levels || {};
-  //       const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
-  //         timeZone: "Asia/Kolkata",
-  //         hour: "2-digit",
-  //         minute: "2-digit",
-  //         second: "2-digit",
-  //         hour12: true,
-  //       });
+    for (const room of allRooms) {
+      if (!room.online) {
+        msg += `🚨 <b>ROOM ${room.room} — OFFLINE</b>\n`;
+        msg += `📵 No data received yet\n`;
+        msg += `⚠️ Check ESP32 connectivity\n\n`;
+      } else {
+        const l = room.levels || {};
+        const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
 
-  //       const activeAlerts = [];
-  //       if (room.alerts?.fire) activeAlerts.push("🔥 Flame detected");
-  //       if (room.alerts?.mq2) activeAlerts.push("💨 LPG elevated");
-  //       if (room.alerts?.mq4) activeAlerts.push("⛽ Methane elevated");
-  //       if (room.alerts?.temp) activeAlerts.push("🌡 Temp high");
+        const activeAlerts = [];
+        if (room.alerts?.fire) activeAlerts.push("🔥 Flame detected");
+        if (room.alerts?.mq2) activeAlerts.push("💨 LPG elevated");
+        if (room.alerts?.mq4) activeAlerts.push("⛽ Methane elevated");
+        if (room.alerts?.temp) activeAlerts.push("🌡 Temp high");
 
-  //       const statusEmoji =
-  //         room.overallStatus === "danger"
-  //           ? "🔴"
-  //           : room.overallStatus === "warning"
-  //             ? "🟡"
-  //             : "🟢";
+        const statusEmoji =
+          room.overallStatus === "danger"
+            ? "🔴"
+            : room.overallStatus === "warning"
+              ? "🟡"
+              : "🟢";
 
-  //       msg += `📊 <b>ROOM ${room.room}</b> — ${statusEmoji} ${room.overallStatus.toUpperCase()}\n`;
-  //       msg += `🕐 ${time}\n`;
-  //       msg += `🌡 Temp: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>  `;
-  //       msg += `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n`;
-  //       msg += `💨 MQ2: ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>  `;
-  //       msg += `⛽ MQ4: ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n`;
-  //       msg += `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n`;
+        msg += `📊 <b>ROOM ${room.room}</b> — ${statusEmoji} ${room.overallStatus.toUpperCase()}\n`;
+        msg += `🕐 ${time}\n`;
+        msg += `🌡 Temp: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>  `;
+        msg += `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n`;
+        msg += `💨 MQ2: ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>  `;
+        msg += `⛽ MQ4: ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n`;
+        msg += `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n`;
 
-  //       if (activeAlerts.length > 0) {
-  //         msg += `⚠️ <b>Active Alerts:</b> ${activeAlerts.join(" | ")}\n`;
-  //       }
-  //       msg += `\n`;
-  //     }
-  //   }
-
-  //   msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  //   msg += `💡 Details: /info 1  •  /info 2`;
-
-  //   return msg;
-  // }
-
-  function _buildRoomInfo(roomId) {
-    const store = getRoomStore();
-
-    // ROOM 3 = SHOW ALL ROOMS
-    if (roomId === 3) {
-      const rooms = store.getAllRooms(3);
-
-      let msg = `📊 <b>ALL ROOMS STATUS</b>
-`;
-      msg += `━━━━━━━━━━━━━━━━━━━
-`;
-
-      rooms.forEach((room) => {
-        if (!room.online) {
-          msg += `
-🚨 Room ${room.room}: OFFLINE
-`;
-          return;
+        if (activeAlerts.length > 0) {
+          msg += `⚠️ <b>Active Alerts:</b> ${activeAlerts.join(" | ")}\n`;
         }
-
-        msg +=
-          `
-🏠 <b>Room ${room.room}</b>
-` +
-          `🌡 Temp: ${room.temp}°C
-` +
-          `💧 Humidity: ${room.humidity}%
-` +
-          `💨 MQ2: ${room.mq2}
-` +
-          `⛽ MQ4: ${room.mq4}
-` +
-          `🔥 Flame: ${room.flame ? "Detected" : "None"}
-` +
-          `📡 Status: ${room.overallStatus.toUpperCase()}
-`;
-      });
-
-      return msg;
+        msg += `\n`;
+      }
     }
 
-    // SINGLE ROOM
-    const room = store.getRoom(roomId);
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `💡 Details: /info 1  •  /info 2`;
 
-    if (!room || !room.online) {
-      return `🚨 Room ${roomId} is OFFLINE`;
-    }
-
-    return (
-      `📊 <b>Room ${roomId}</b>
-` +
-      `🌡 Temp: ${room.temp}°C
-` +
-      `💧 Humidity: ${room.humidity}%
-` +
-      `💨 MQ2: ${room.mq2}
-` +
-      `⛽ MQ4: ${room.mq4}
-` +
-      `🔥 Flame: ${room.flame ? "Detected" : "None"}
-` +
-      `📡 Status: ${room.overallStatus.toUpperCase()}`
-    );
+    return msg;
   }
 
   // ── Unknown command ───────────────────────────────────────
