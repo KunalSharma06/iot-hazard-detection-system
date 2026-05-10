@@ -4,13 +4,9 @@ const thresholds = require("../config/threshold");
 
 // At the top of your file
 const alertTracker = require("../models/alertTracker");
-const notificationService = require("../services/notificationService");
 
 // Add this function to check offline status
 async function monitorOfflineStatus(roomId) {
-  const thresholds = require("../config/threshold");
-  const roomStore = require("../models/roomstore");
-  
   const room = roomStore.getRoom(roomId);
   const isCurrentlyOffline = !room || (Date.now() - room.lastSeen > thresholds.offlineAfterSeconds * 1000);
   
