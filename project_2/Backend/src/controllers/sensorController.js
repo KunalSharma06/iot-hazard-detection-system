@@ -5,51 +5,17 @@ const thresholds = require("../config/threshold");
 // At the top of your file
 const alertTracker = require("../models/alertTracker");
 
-// Global timeout tracking for each room's offline alert
-const offlineTimers = {};
-
 // Add this function to check offline status
 async function monitorOfflineStatus(roomId) {
   const room = roomStore.getRoom(roomId);
-  const isCurrentlyOffline =
-    !room || Date.now() - room.lastSeen > thresholds.offlineAfterSeconds * 1000;
-
+  const isCurrentlyOffline = !room || (Date.now() - room.lastSeen > thresholds.offlineAfterSeconds * 1000);
+  
   // This tracks state and returns true ONLY on transition: online → offline
   const justWentOffline = alertTracker.setOffline(roomId, isCurrentlyOffline);
-
+  
   if (justWentOffline) {
     console.log(`[OFFLINE ALERT] Room ${roomId} is now OFFLINE`);
-
-    // Clear any existing timer for this room
-    if (offlineTimers[roomId]) {
-      clearTimeout(offlineTimers[roomId]);
-    }
-
-    // Wait 30 seconds, then send offline notification ONLY if still offline
-    offlineTimers[roomId] = setTimeout(async () => {
-      const stillOffline =
-        roomStore.getRoom(roomId) === null ||
-        Date.now() - roomStore.getRoom(roomId)?.lastSeen >
-          thresholds.offlineAfterSeconds * 1000;
-
-      if (stillOffline) {
-        await notificationService.sendOfflineAlert(roomId);
-        console.log(
-          `[OFFLINE] Sent offline notification for Room ${roomId} after 30 second delay`,
-        );
-      }
-
-      delete offlineTimers[roomId];
-    }, 30000); // 30 seconds
-  }
-
-  // If room comes back online, cancel the pending offline alert
-  if (room && isCurrentlyOffline === false && offlineTimers[roomId]) {
-    clearTimeout(offlineTimers[roomId]);
-    delete offlineTimers[roomId];
-    console.log(
-      `[OFFLINE] Room ${roomId} came back online, cancelled pending alert`,
-    );
+    await notificationService.sendOfflineAlert(roomId);
   }
 }
 
@@ -71,12 +37,6 @@ async function receiveData(req, res, next) {
     console.log(
       `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame} Status:${saved.overallStatus}`,
     );
-
-    // Clear offline timer if room is back online
-    if (offlineTimers[room]) {
-      clearTimeout(offlineTimers[room]);
-      delete offlineTimers[room];
-    }
 
     // ── Current LEVEL state ──────────────────────────────
     const current = {

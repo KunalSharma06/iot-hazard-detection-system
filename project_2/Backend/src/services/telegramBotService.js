@@ -8,7 +8,7 @@
 //   /status                → show system + subscription info
 //   /info 1                → live sensor values for Room 1
 //   /info 2                → live sensor values for Room 2
-//   /info 3                → live sensor values for Room 3 (CORRECTED: shows combined info, not Room 3)
+//   /info 3                → live sensor values for Room 3
 
 const fetch = require("node-fetch");
 const config = require("../config/notificationConfig");
@@ -49,68 +49,10 @@ function _levelEmoji(level) {
   return "🟢";
 }
 
-// ── Helper: Build combined info for all rooms ─────────────────────────────
-function _buildCombinedRoomsInfo(allRooms) {
-  let msg = `📊 <b>ALL ROOMS — Live Data Summary</b>\n`;
-  msg += `🕐 ${new Date().toLocaleTimeString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  })}\n`;
-  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-  for (const room of allRooms) {
-    if (!room || !room.online) {
-      msg += `🚨 <b>ROOM ${room?.room || "N/A"} — OFFLINE</b>\n`;
-      msg += `📵 No data received yet\n`;
-      msg += `⚠️ Check ESP32 connectivity\n\n`;
-    } else {
-      const l = room.levels || {};
-      const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      });
-
-      const activeAlerts = [];
-      if (room.alerts?.fire) activeAlerts.push("🔥 Flame detected");
-      if (room.alerts?.mq2) activeAlerts.push("💨 LPG elevated");
-      if (room.alerts?.mq4) activeAlerts.push("⛽ Methane elevated");
-      if (room.alerts?.temp) activeAlerts.push("🌡 Temp high");
-
-      const statusEmoji =
-        room.overallStatus === "danger"
-          ? "🔴"
-          : room.overallStatus === "warning"
-            ? "🟡"
-            : "🟢";
-
-      msg += `📊 <b>ROOM ${room.room}</b> — ${statusEmoji} ${room.overallStatus.toUpperCase()}\n`;
-      msg += `🕐 ${time}\n`;
-      msg += `🌡 Temp: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>  `;
-      msg += `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n`;
-      msg += `💨 MQ2: ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>  `;
-      msg += `⛽ MQ4: ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n`;
-      msg += `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n`;
-
-      if (activeAlerts.length > 0) {
-        msg += `⚠️ <b>Active Alerts:</b> ${activeAlerts.join(" | ")}\n`;
-      }
-      msg += `\n`;
-    }
-  }
-
-  msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  msg += `💡 Details: /info 1  •  /info 2`;
-
-  return msg;
-}
-
 // ── Build /info <roomId> response ────────────────────────────
+// ─── Telegram Bot Listener ────────────────────────────────────
+// Replace ONLY _buildRoomInfo(roomId) with this
+
 function _buildRoomInfo(roomId) {
   const store = getRoomStore();
   const room = store.getRoom(roomId);
@@ -155,7 +97,7 @@ function _buildRoomInfo(roomId) {
   if (room.alerts?.temp) activeList.push("🌡 Temperature high");
 
   const alertSection = activeList.length
-    ? `\n⚠️ <b>Active Alerts:</b>\n${activeList.map((a) => `• ${a}`).join("\n")}`
+    ? `\n⚠️ <b>Active Alerts:</b>\n${activeList.map(a => `• ${a}`).join("\n")}`
     : `\n✅ All sensors normal`;
 
   return (
@@ -273,7 +215,7 @@ async function handleMessage(msg) {
   // ── /status ──────────────────────────────────────────────
   if (text === "/status") {
     const store = getRoomStore();
-    const rooms = store.getAllRooms(2);
+    const rooms = store.getAllRooms(3);
     const subCount = subscriberStore.count();
     const isSubbed = subscriberStore.has(chatId);
 
@@ -305,24 +247,87 @@ async function handleMessage(msg) {
     return;
   }
 
+  // ── /info <roomId> — handles "info 1", "info 2", "info 3" ─
+  // Also accepts "/system info 1" or just "info 1" for flexibility
+  // ── /info <roomId> ───────────────────────────────────────
   // ── /info <roomId> ───────────────────────────────────────────
-  // Handles /info 1, /info 2, /info 3
-  // Note: /info 3 shows ALL ROOMS in one combined message
   const infoMatch = text.match(/^\/info\s+([1-3])$/);
   if (infoMatch) {
     const roomId = parseInt(infoMatch[1]);
 
-    // Special case: /info 3 shows ALL ROOMS in one combined message
+    // Special case: /info 3 shows ALL rooms in one message
     if (roomId === 3) {
       const store = getRoomStore();
-      const allRooms = store.getAllRooms(2); // Get rooms 1 & 2 only
+      const allRooms = store.getAllRooms(2); // Get rooms 1 & 2
+
       const combinedMsg = _buildCombinedRoomsInfo(allRooms);
       await sendTo(chatId, combinedMsg);
     } else {
-      // /info 1 or /info 2 — show individual room info
+      // /info 1 or /info 2 — show individual room
       await sendTo(chatId, _buildRoomInfo(roomId));
     }
     return;
+  }
+
+  // ── New function: Build combined info for all rooms ─────────────
+  function _buildCombinedRoomsInfo(allRooms) {
+    let msg = `📊 <b>ALL ROOMS — Live Data Summary</b>\n`;
+    msg += `🕐 ${new Date().toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    for (const room of allRooms) {
+      if (!room.online) {
+        msg += `🚨 <b>ROOM ${room.room} — OFFLINE</b>\n`;
+        msg += `📵 No data received yet\n`;
+        msg += `⚠️ Check ESP32 connectivity\n\n`;
+      } else {
+        const l = room.levels || {};
+        const time = new Date(room.lastSeen).toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+
+        const activeAlerts = [];
+        if (room.alerts?.fire) activeAlerts.push("🔥 Flame detected");
+        if (room.alerts?.mq2) activeAlerts.push("💨 LPG elevated");
+        if (room.alerts?.mq4) activeAlerts.push("⛽ Methane elevated");
+        if (room.alerts?.temp) activeAlerts.push("🌡 Temp high");
+
+        const statusEmoji =
+          room.overallStatus === "danger"
+            ? "🔴"
+            : room.overallStatus === "warning"
+              ? "🟡"
+              : "🟢";
+
+        msg += `📊 <b>ROOM ${room.room}</b> — ${statusEmoji} ${room.overallStatus.toUpperCase()}\n`;
+        msg += `🕐 ${time}\n`;
+        msg += `🌡 Temp: ${_levelEmoji(l.temp)} <b>${room.temp?.toFixed(1)}°C</b>  `;
+        msg += `💧 Humidity: ${_levelEmoji(l.humidity)} <b>${room.humidity?.toFixed(0)}%</b>\n`;
+        msg += `💨 MQ2: ${_levelEmoji(l.mq2)} <b>${room.mq2}</b>  `;
+        msg += `⛽ MQ4: ${_levelEmoji(l.mq4)} <b>${room.mq4}</b>\n`;
+        msg += `🔥 Flame: ${room.flame ? "🔴 <b>DETECTED</b>" : "🟢 None"}\n`;
+
+        if (activeAlerts.length > 0) {
+          msg += `⚠️ <b>Active Alerts:</b> ${activeAlerts.join(" | ")}\n`;
+        }
+        msg += `\n`;
+      }
+    }
+
+    msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `💡 Details: /info 1  •  /info 2`;
+
+    return msg;
   }
 
   // ── Unknown command ───────────────────────────────────────
@@ -334,6 +339,7 @@ async function handleMessage(msg) {
 }
 
 // ── Long polling loop ─────────────────────────────────────────
+// ── Long polling loop ─────────────────────────────────────────
 async function startPolling() {
   if (!config.telegram.enabled) {
     console.log("[BOT] Telegram disabled in config — skipping");
@@ -342,16 +348,14 @@ async function startPolling() {
 
   console.log("[BOT] 🤖 Telegram bot started — polling for messages...");
 
-  // Skip all old messages on startup
+  // ← ADD THIS: skip all old messages on startup
   try {
     const url = `https://api.telegram.org/bot${config.telegram.token}/getUpdates?offset=-1`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.ok && data.result.length > 0) {
       lastUpdate = data.result[data.result.length - 1].update_id;
-      console.log(
-        `[BOT] Skipped old messages, starting from update: ${lastUpdate}`,
-      );
+      console.log(`[BOT] Skipped old messages, starting from update: ${lastUpdate}`);
     }
   } catch (err) {}
 
