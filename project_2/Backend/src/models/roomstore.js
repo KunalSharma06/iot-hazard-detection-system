@@ -87,18 +87,47 @@ function getRoom(roomId) {
 }
 
 // Get all rooms (IDs 1–3 by default)
+// function getAllRooms(totalRooms = 3) {
+//   const result = [];
+//   for (let i = 1; i <= totalRooms; i++) {
+//     const r = store[i];
+//     if (!r) {
+//       result.push({ room: i, online: false });
+//     } else {
+//       const online =
+//         Date.now() - r.lastSeen < thresholds.offlineAfterSeconds * 1000;
+//       result.push({ ...r, online });
+//     }
+//   }
+//   return result;
+// }
+
 function getAllRooms(totalRooms = 3) {
   const result = [];
+
   for (let i = 1; i <= totalRooms; i++) {
     const r = store[i];
+
+    // no data received yet
     if (!r) {
-      result.push({ room: i, online: false });
-    } else {
-      const online =
-        Date.now() - r.lastSeen < thresholds.offlineAfterSeconds * 1000;
-      result.push({ ...r, online });
+      result.push({
+        room: i,
+        online: false,
+        status: "offline",
+      });
+      continue;
     }
+
+    const online =
+      Date.now() - r.lastSeen < thresholds.offlineAfterSeconds * 1000;
+
+    result.push({
+      ...r,
+      online,
+      status: online ? r.overallStatus : "offline",
+    });
   }
+
   return result;
 }
 
