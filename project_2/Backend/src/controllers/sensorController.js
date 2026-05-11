@@ -4,6 +4,7 @@ const thresholds = require("../config/threshold");
 
 // At the top of your file
 const alertTracker = require("../models/alertTracker");
+const emergencyService = require("../services/emergencyService");
 
 // Add this function to check offline status
 async function monitorOfflineStatus(roomId) {
@@ -67,6 +68,10 @@ async function receiveData(req, res, next) {
           { ...saved, _thresholds: thresholds },
           current.mq2,
         );
+
+        if (current.mq2 === "danger") {
+          await emergencyService.startEmergency(room);
+        }
       }
     }
 
@@ -79,6 +84,9 @@ async function receiveData(req, res, next) {
           { ...saved, _thresholds: thresholds },
           current.mq4,
         );
+         if (current.mq4 === "danger") {
+           await emergencyService.startEmergency(room);
+         }
       }
     }
 
@@ -102,6 +110,7 @@ async function receiveData(req, res, next) {
         { ...saved, _thresholds: thresholds },
         "danger",
       );
+      await emergencyService.startEmergency(room);
     }
 
     // ── ALL CLEAR — when all go back to safe ─────────────

@@ -7,6 +7,7 @@ const roomRoutes = require("./src/routes/roomRoutes");
 const sensorRoutes = require("./src/routes/sensorRoutes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const { startPolling } = require("./src/services/telegramBotService"); // ← ADD THIS
+require("./src/services/helperBot.js"); // ← ADD THIS
 
 const app = express();
 const PORT = process.env.PORT || 3000;

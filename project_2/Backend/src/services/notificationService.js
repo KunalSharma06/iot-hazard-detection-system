@@ -171,4 +171,9 @@ async function sendOfflineAlert(roomId) {
   await _broadcast(SYSTEM_TEMPLATES.offline(roomId));
 }
 
-module.exports = { sendAlert, sendAllClear, sendOfflineAlert };
+async function sendTelegramMessage(text) {
+  await _broadcast(text);
+}
+
+
+module.exports = { sendAlert, sendAllClear, sendOfflineAlert, sendTelegramMessage };
