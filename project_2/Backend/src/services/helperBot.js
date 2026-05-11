@@ -7,54 +7,76 @@ const helperBot = new TelegramBot(process.env.HELPER_BOT_TOKEN, {
   polling: true,
 });
 
-console.log("✅ Helper bot started - INTERACTIVE BUTTONS VERSION");
+const mainBot = new TelegramBot(process.env.TELEGRAM_TOKEN, {
+  polling: false,
+});
+
+console.log("✅ Helper Bot Started - INTERACTIVE BUTTONS (FIXED VERSION)");
 
 // ════════════════════════════════════════════════════════════
-// EMERGENCY TRACKER - Store all emergencies
+// EMERGENCY TRACKER - Store emergencies WITH LONG EXPIRY
 // ════════════════════════════════════════════════════════════
 
 const emergencyTracker = new Map();
 
+// Keep emergencies in memory for 24 hours (no expiry)
+function storeEmergency(id, data) {
+  emergencyTracker.set(id, data);
+  console.log(`✅ Emergency ${id} stored`);
+}
+
+function getEmergency(id) {
+  const emergency = emergencyTracker.get(id);
+  if (!emergency) {
+    console.log(`❌ Emergency ${id} not found!`);
+    console.log(`Available: ${Array.from(emergencyTracker.keys()).join(", ")}`);
+  }
+  return emergency;
+}
+
 // ════════════════════════════════════════════════════════════
-// LOCATION DATABASE - Factory/Room details
+// LOCATION DATABASE
 // ════════════════════════════════════════════════════════════
 
 const locationDatabase = {
   1: {
-    name: "Factory A - Room 1",
+    name: "Room 1",
     building: "Main Building",
     floor: "Ground Floor",
-    address: "Industrial Zone, Sector 5, Mumbai",
+    address: "Factory Address",
     coordinates: { lat: 19.0176, lng: 72.8479 },
   },
   2: {
-    name: "Factory A - Room 2",
-    building: "Warehouse Building",
+    name: "Room 2",
+    building: "Warehouse",
     floor: "First Floor",
-    address: "Industrial Zone, Sector 5, Mumbai",
+    address: "Factory Address",
     coordinates: { lat: 19.0176, lng: 72.8479 },
   },
 };
 
 // ════════════════════════════════════════════════════════════
-// SEND EMERGENCY ALERT - With interactive buttons
+// SEND EMERGENCY ALERT
 // ════════════════════════════════════════════════════════════
 
 async function sendEmergencyAlert(roomId, sensorData) {
   const helperChatId = process.env.HELPER_CHAT_ID;
 
   if (!helperChatId) {
-    console.log("❌ No helper chat ID in .env");
+    console.log("❌ No HELPER_CHAT_ID in .env");
     return;
   }
 
   const location = locationDatabase[roomId] || {
     name: `Room ${roomId}`,
-    address: "Unknown location",
+    building: "Unknown",
+    floor: "Unknown",
+    address: "Unknown",
+    coordinates: { lat: 0, lng: 0 },
   };
 
-  // Create unique emergency ID
-  const emergencyId = `EMG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Create emergency ID - MUST be simple and unique
+  const emergencyId = `EMG_${Date.now()}`;
 
   // Store emergency data
   const emergency = {
@@ -67,9 +89,10 @@ async function sendEmergencyAlert(roomId, sensorData) {
     helperName: null,
   };
 
-  emergencyTracker.set(emergencyId, emergency);
+  storeEmergency(emergencyId, emergency);
 
-  console.log(`\n🚨 EMERGENCY CREATED: ${emergencyId}`);
+  console.log(`\n🚨 EMERGENCY ALERT CREATED`);
+  console.log(`   ID: ${emergencyId}`);
   console.log(`   Room: ${location.name}`);
   console.log(`   Alert: ${sensorData.message}`);
 
@@ -83,22 +106,22 @@ Building: ${location.building}
 Floor: ${location.floor}
 Address: ${location.address}
 
-*⚠️ Alert Type:* ${sensorData.message}
+*⚠️ Alert:* ${sensorData.message}
 
-*📊 Sensor Readings:*
-🌡️ Temperature: ${sensorData.temperature}°C
+*📊 Readings:*
+🌡️ Temp: ${sensorData.temperature}°C
 💧 Humidity: ${sensorData.humidity}%
-💨 MQ2 (Smoke/Gas): ${sensorData.mq2} ppm
-🔥 MQ4 (Natural Gas): ${sensorData.mq4} ppm
-🔴 Flame Detected: ${sensorData.flame ? "YES - FIRE RISK" : "NO"}
+💨 MQ2: ${sensorData.mq2} ppm
+🔥 MQ4: ${sensorData.mq4} ppm
+🔴 Flame: ${sensorData.flame ? "YES ⚠️" : "NO"}
 
-*🆔 Emergency ID:* \`${emergencyId}\`
+*🆔 ID:* \`${emergencyId}\`
 *⏰ Time:* ${emergency.detectedAt.toLocaleTimeString()}
 
-*📍 ACTION REQUIRED IMMEDIATELY!*
+*📍 ACTION REQUIRED!*
     `;
 
-    await helperBot.sendMessage(helperChatId, message, {
+    const result = await helperBot.sendMessage(helperChatId, message, {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
@@ -127,61 +150,65 @@ Address: ${location.address}
     });
 
     console.log(
-      "✅ Emergency alert sent to helper bot with interactive buttons",
+      `✅ Alert sent to helper bot, message ID: ${result.message_id}`,
     );
     return emergencyId;
   } catch (err) {
-    console.error("❌ Error sending emergency alert:", err);
+    console.error("❌ Error sending alert:", err.message);
   }
 }
 
 // ════════════════════════════════════════════════════════════
-// CALLBACK QUERY HANDLER - Process button clicks
+// CALLBACK HANDLER
 // ════════════════════════════════════════════════════════════
 
 helperBot.on("callback_query", async (query) => {
   const { id, from, data, message } = query;
   const helperName = from.first_name || "Helper";
 
-  console.log(`\n🔘 BUTTON CLICKED: ${data} by ${helperName}`);
+  console.log(`\n🔘 BUTTON CLICKED: ${data}`);
+  console.log(`   Helper: ${helperName}`);
 
   try {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ACCEPT EMERGENCY
+    // ACCEPT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (data.startsWith("accept_")) {
       const emergencyId = data.replace("accept_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      console.log(`   Looking for emergency: ${emergencyId}`);
+
+      const emergency = getEmergency(emergencyId);
 
       if (!emergency) {
+        console.log(`   ❌ NOT FOUND - Showing user alert`);
         await helperBot.answerCallbackQuery(id, {
-          text: "❌ Emergency expired",
+          text: "❌ Emergency not found or already handled",
           show_alert: true,
         });
         return;
       }
 
+      console.log(`   ✅ FOUND - Processing acceptance`);
+
       emergency.status = "accepted";
       emergency.helperName = helperName;
       emergency.acceptedAt = new Date();
 
-      // Edit original message
+      // Edit the message
       const editMessage = `
 ✅ *EMERGENCY ACCEPTED*
 
-*📍 Location:*
+📍 *Location:*
 ${emergency.location.name}
-Building: ${emergency.location.building}
-Floor: ${emergency.location.floor}
-Address: ${emergency.location.address}
+${emergency.location.building}
 
-*👤 Helper:* ${helperName}
-*⏰ Accepted At:* ${emergency.acceptedAt.toLocaleTimeString()}
+👤 *Helper:* ${helperName}
+⏰ *Time:* ${emergency.acceptedAt.toLocaleTimeString()}
 
-*⏱️ ETA: 3-5 Minutes*
-🚗 *Heading to your location now...*
+⏱️ *ETA: 3-5 MINUTES*
+🚗 *On the way to your location*
 
-*Status Options:*
+*Status: HELPER ARRIVING SOON*
       `;
 
       await helperBot.editMessageText(editMessage, {
@@ -192,36 +219,21 @@ Address: ${emergency.location.address}
           inline_keyboard: [
             [
               {
-                text: "🚗 Arrived at Location",
+                text: "🚗 Arrived",
                 callback_data: `arrived_${emergencyId}`,
               },
               {
-                text: "✅ Issue Resolved",
+                text: "✅ Resolved",
                 callback_data: `resolved_${emergencyId}`,
-              },
-            ],
-            [
-              {
-                text: "⚠️ Need Backup",
-                callback_data: `backup_${emergencyId}`,
               },
             ],
           ],
         },
       });
 
-      // Send notification to main bot
-      await notificationService.sendTelegramMessage(
-        `✅ *EMERGENCY ACCEPTED*
-
-👤 Helper: ${helperName}
-🏠 Room: ${emergency.location.name}
-⚠️ Alert: ${emergency.sensorData.message}
-⏰ Response Time: ${Math.floor((emergency.acceptedAt - emergency.detectedAt) / 1000)}s
-🚗 ETA: 3-5 minutes
-
-_Helper is now en route to your location_`,
-      );
+      // SEND TO MAIN BOT
+      console.log(`   📢 Sending to main bot...`);
+      await sendToMainBot(emergency, "ACCEPTED");
 
       await helperBot.answerCallbackQuery(id, {
         text: "✅ Accepted! ETA 3-5 minutes",
@@ -230,11 +242,11 @@ _Helper is now en route to your location_`,
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // REJECT EMERGENCY
+    // REJECT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("reject_")) {
       const emergencyId = data.replace("reject_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      const emergency = getEmergency(emergencyId);
 
       if (!emergency) {
         await helperBot.answerCallbackQuery(id, {
@@ -250,14 +262,10 @@ _Helper is now en route to your location_`,
       const editMessage = `
 ❌ *EMERGENCY REJECTED*
 
-*📍 Location:*
-${emergency.location.name}
-Building: ${emergency.location.building}
+📍 ${emergency.location.name}
+👤 Helper: ${helperName}
 
-*👤 Helper:* ${helperName}
-*Reason:* Unable to assist at this time
-
-⚠️ Waiting for another helper to respond...
+⚠️ *Looking for another helper...*
       `;
 
       await helperBot.editMessageText(editMessage, {
@@ -266,14 +274,7 @@ Building: ${emergency.location.building}
         parse_mode: "Markdown",
       });
 
-      await notificationService.sendTelegramMessage(
-        `❌ *EMERGENCY REJECTED*
-
-Helper: ${helperName}
-Location: ${emergency.location.name}
-
-⚠️ Looking for alternative help...`,
-      );
+      await sendToMainBot(emergency, "REJECTED");
 
       await helperBot.answerCallbackQuery(id, {
         text: "❌ Rejection recorded",
@@ -286,7 +287,7 @@ Location: ${emergency.location.name}
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("details_")) {
       const emergencyId = data.replace("details_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      const emergency = getEmergency(emergencyId);
 
       if (!emergency) {
         await helperBot.answerCallbackQuery(id, {
@@ -296,44 +297,32 @@ Location: ${emergency.location.name}
         return;
       }
 
-      const detailsMessage = `
-📋 *DETAILED EMERGENCY INFORMATION*
+      const details = `
+📋 *DETAILED INFORMATION*
 
-*🏢 Location Details:*
+*📍 Location:*
 Name: ${emergency.location.name}
 Building: ${emergency.location.building}
 Floor: ${emergency.location.floor}
 Address: ${emergency.location.address}
-Coordinates: ${emergency.location.coordinates.lat}, ${emergency.location.coordinates.lng}
 
-*⚠️ Alert Details:*
-Alert: ${emergency.sensorData.message}
+*⚠️ Alert:*
+${emergency.sensorData.message}
 
-*📊 Complete Sensor Readings:*
+*📊 All Readings:*
 🌡️ Temperature: ${emergency.sensorData.temperature}°C
 💧 Humidity: ${emergency.sensorData.humidity}%
-💨 MQ2 (Smoke/Gas): ${emergency.sensorData.mq2} ppm
-🔥 MQ4 (Natural Gas): ${emergency.sensorData.mq4} ppm
-🔴 Flame Detected: ${emergency.sensorData.flame ? "YES ⚠️" : "NO ✅"}
+💨 MQ2: ${emergency.sensorData.mq2} ppm
+🔥 MQ4: ${emergency.sensorData.mq4} ppm
+🔴 Flame: ${emergency.sensorData.flame ? "YES ⚠️" : "NO ✅"}
 
-*🚨 RISK ASSESSMENT:*
-${emergency.sensorData.mq2 > 350 ? "• MQ2 CRITICAL - Smoke/Flammable Gas detected" : ""}
-${emergency.sensorData.mq4 > 1000 ? "• MQ4 CRITICAL - Natural Gas leak detected" : ""}
-${emergency.sensorData.flame ? "• FLAME DETECTED - Fire hazard present" : ""}
-${emergency.sensorData.temperature > 35 ? "• TEMPERATURE HIGH - Risk of equipment damage" : ""}
+*⏰ Time:* ${emergency.detectedAt.toLocaleTimeString()}
+*🆔 ID:* \`${emergencyId}\`
 
-*✅ Action Steps:*
-1. Review all readings above
-2. Assess personal safety first
-3. Use [✅ Accept & Going] if safe to handle
-4. Follow emergency protocols
-5. Contact facility manager if needed
-
-*⏰ Detection Time:* ${emergency.detectedAt.toLocaleTimeString()}
-*🆔 Emergency ID:* \`${emergency.id}\`
+*✅ ACTION:* Use [✅ Accept & Going] if safe
       `;
 
-      await helperBot.sendMessage(from.id, detailsMessage, {
+      await helperBot.sendMessage(from.id, details, {
         parse_mode: "Markdown",
       });
 
@@ -348,7 +337,7 @@ ${emergency.sensorData.temperature > 35 ? "• TEMPERATURE HIGH - Risk of equipm
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("location_")) {
       const emergencyId = data.replace("location_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      const emergency = getEmergency(emergencyId);
 
       if (!emergency) {
         await helperBot.answerCallbackQuery(id, {
@@ -358,46 +347,26 @@ ${emergency.sensorData.temperature > 35 ? "• TEMPERATURE HIGH - Risk of equipm
         return;
       }
 
-      // Send location
       await helperBot.sendLocation(
         from.id,
         emergency.location.coordinates.lat,
         emergency.location.coordinates.lng,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "📍 Open in Google Maps",
-                  url: `https://maps.google.com/?q=${emergency.location.coordinates.lat},${emergency.location.coordinates.lng}`,
-                },
-              ],
-            ],
-          },
-        },
       );
 
-      const locationMessage = `
+      const locationMsg = `
 📍 *Location Information*
 
 *Facility:* ${emergency.location.name}
-*Building:* ${emergency.location.building}
-*Floor:* ${emergency.location.floor}
-*Full Address:* ${emergency.location.address}
+*Address:* ${emergency.location.address}
 
-*GPS Coordinates:*
-Latitude: ${emergency.location.coordinates.lat}
-Longitude: ${emergency.location.coordinates.lng}
+*GPS:*
+Lat: ${emergency.location.coordinates.lat}
+Lng: ${emergency.location.coordinates.lng}
 
-*Navigation Instructions:*
-✓ Use Google Maps link above for turn-by-turn navigation
-✓ Inform facility gate about emergency situation
-✓ Go directly to the room location
-✓ Call facility manager when you arrive
-✓ Check in with security
+📍 [Open in Maps](https://maps.google.com/?q=${emergency.location.coordinates.lat},${emergency.location.coordinates.lng})
       `;
 
-      await helperBot.sendMessage(from.id, locationMessage, {
+      await helperBot.sendMessage(from.id, locationMsg, {
         parse_mode: "Markdown",
       });
 
@@ -408,30 +377,34 @@ Longitude: ${emergency.location.coordinates.lng}
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // HELPER ARRIVED
+    // ARRIVED
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("arrived_")) {
       const emergencyId = data.replace("arrived_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      const emergency = getEmergency(emergencyId);
 
-      if (!emergency) return;
+      if (!emergency) {
+        await helperBot.answerCallbackQuery(id, {
+          text: "❌ Emergency not found",
+          show_alert: true,
+        });
+        return;
+      }
 
       emergency.status = "arrived";
       emergency.arrivedAt = new Date();
 
-      const arrivedMessage = `
-🚗 *HELPER ARRIVED AT LOCATION*
+      const arrivedMsg = `
+🚗 *HELPER ARRIVED*
 
-*👤 Helper:* ${helperName}
-*📍 Location:* ${emergency.location.name}
-*⏰ Arrival Time:* ${emergency.arrivedAt.toLocaleTimeString()}
+📍 ${emergency.location.name}
+👤 Helper: ${helperName}
+⏰ Time: ${emergency.arrivedAt.toLocaleTimeString()}
 
-*Current Status:*
-Assessing situation...
-Taking necessary safety precautions...
+*Assessing situation...*
       `;
 
-      await helperBot.editMessageText(arrivedMessage, {
+      await helperBot.editMessageText(arrivedMsg, {
         chat_id: message.chat.id,
         message_id: message.message_id,
         parse_mode: "Markdown",
@@ -439,27 +412,16 @@ Taking necessary safety precautions...
           inline_keyboard: [
             [
               {
-                text: "✅ Issue Resolved",
+                text: "✅ Resolved",
                 callback_data: `resolved_${emergencyId}`,
-              },
-              {
-                text: "⚠️ Need Backup",
-                callback_data: `backup_${emergencyId}`,
               },
             ],
           ],
         },
       });
 
-      await notificationService.sendTelegramMessage(
-        `🚗 *HELPER ARRIVED*
-
-Helper: ${helperName}
-Location: ${emergency.location.name}
-Arrival Time: ${emergency.arrivedAt.toLocaleTimeString()}
-
-Assessing and resolving the emergency...`,
-      );
+      // NOTIFY MAIN BOT
+      await sendToMainBot(emergency, "ARRIVED");
 
       await helperBot.answerCallbackQuery(id, {
         text: "✅ Arrival recorded",
@@ -468,13 +430,19 @@ Assessing and resolving the emergency...`,
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ISSUE RESOLVED
+    // RESOLVED
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("resolved_")) {
       const emergencyId = data.replace("resolved_", "");
-      const emergency = emergencyTracker.get(emergencyId);
+      const emergency = getEmergency(emergencyId);
 
-      if (!emergency) return;
+      if (!emergency) {
+        await helperBot.answerCallbackQuery(id, {
+          text: "❌ Emergency not found",
+          show_alert: true,
+        });
+        return;
+      }
 
       emergency.status = "resolved";
       emergency.resolvedAt = new Date();
@@ -483,81 +451,125 @@ Assessing and resolving the emergency...`,
         (emergency.resolvedAt - emergency.detectedAt) / 1000,
       );
 
-      const resolvedMessage = `
+      const resolvedMsg = `
 ✅ *EMERGENCY RESOLVED*
 
-*👤 Helper:* ${helperName}
-*📍 Location:* ${emergency.location.name}
+📍 ${emergency.location.name}
+👤 Helper: ${helperName}
 
-*⏱️ Response Timeline:*
+*⏱️ Response Time:* ${responseTime}s (${Math.floor(responseTime / 60)}m ${responseTime % 60}s)
+
+Timeline:
 Detection: ${emergency.detectedAt.toLocaleTimeString()}
-Acceptance: ${emergency.acceptedAt?.toLocaleTimeString() || "N/A"}
-Arrival: ${emergency.arrivedAt?.toLocaleTimeString() || "N/A"}
-Resolution: ${emergency.resolvedAt.toLocaleTimeString()}
-
-*Total Response Time:* ${responseTime}s (${Math.floor(responseTime / 60)}m ${responseTime % 60}s)
+Accepted: ${emergency.acceptedAt?.toLocaleTimeString() || "N/A"}
+Arrived: ${emergency.arrivedAt?.toLocaleTimeString() || "N/A"}
+Resolved: ${emergency.resolvedAt.toLocaleTimeString()}
 
 ✅ *Status: ALL CLEAR*
-Facility is safe to resume operations
       `;
 
-      await helperBot.editMessageText(resolvedMessage, {
+      await helperBot.editMessageText(resolvedMsg, {
         chat_id: message.chat.id,
         message_id: message.message_id,
         parse_mode: "Markdown",
       });
 
-      await notificationService.sendTelegramMessage(
-        `✅ *EMERGENCY FULLY RESOLVED*
-
-Helper: ${helperName}
-Location: ${emergency.location.name}
-Total Response Time: ${responseTime}s (${Math.floor(responseTime / 60)}m ${responseTime % 60}s)
-
-✅ ALL SYSTEMS NORMAL - OPERATIONS CAN RESUME`,
-      );
+      // NOTIFY MAIN BOT
+      await sendToMainBot(emergency, "RESOLVED");
 
       await helperBot.answerCallbackQuery(id, {
         text: "✅ Emergency resolved",
         show_alert: false,
       });
     }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // NEED BACKUP
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    else if (data.startsWith("backup_")) {
-      const emergencyId = data.replace("backup_", "");
-      const emergency = emergencyTracker.get(emergencyId);
-
-      if (!emergency) return;
-
-      emergency.backupRequested = true;
-
-      await notificationService.sendTelegramMessage(
-        `🚨 *BACKUP REQUESTED*
-
-Helper: ${helperName}
-Location: ${emergency.location.name}
-Alert: ${emergency.sensorData.message}
-
-ADDITIONAL RESOURCES NEEDED IMMEDIATELY!
-Sending backup units...`,
-      );
-
+  } catch (err) {
+    console.error("❌ Error in callback:", err.message);
+    try {
       await helperBot.answerCallbackQuery(id, {
-        text: "🚨 Backup request sent to management",
+        text: `❌ Error: ${err.message}`,
         show_alert: true,
       });
+    } catch (e) {
+      console.error("Could not send error response");
     }
-  } catch (err) {
-    console.error("❌ Error handling callback:", err);
-    await helperBot.answerCallbackQuery(id, {
-      text: "❌ Error processing request",
-      show_alert: true,
-    });
   }
 });
+
+// ════════════════════════════════════════════════════════════
+// SEND TO MAIN BOT
+// ════════════════════════════════════════════════════════════
+
+async function sendToMainBot(emergency, eventType) {
+  const mainChatId = process.env.MAIN_CHAT_ID;
+
+  if (!mainChatId) {
+    console.log("⚠️  No MAIN_CHAT_ID - skipping main bot notification");
+    return;
+  }
+
+  try {
+    let notification = "";
+
+    if (eventType === "ACCEPTED") {
+      notification = `
+✅ *EMERGENCY ACCEPTED*
+
+👤 Helper: ${emergency.helperName}
+🏠 Location: ${emergency.location.name}
+⚠️ Alert: ${emergency.sensorData.message}
+
+⏰ Response: ${Math.floor((emergency.acceptedAt - emergency.detectedAt) / 1000)}s
+🚗 *ETA: 3-5 Minutes*
+
+Helper is arriving now...
+      `;
+    } else if (eventType === "REJECTED") {
+      notification = `
+❌ *EMERGENCY REJECTED*
+
+Helper: ${emergency.rejectedBy}
+Location: ${emergency.location.name}
+
+⚠️ Waiting for another helper...
+      `;
+    } else if (eventType === "ARRIVED") {
+      notification = `
+🚗 *HELPER ARRIVED*
+
+Helper: ${emergency.helperName}
+Location: ${emergency.location.name}
+Arrival Time: ${emergency.arrivedAt.toLocaleTimeString()}
+
+Now assessing the emergency...
+      `;
+    } else if (eventType === "RESOLVED") {
+      const responseTime = Math.floor(
+        (emergency.resolvedAt - emergency.detectedAt) / 1000,
+      );
+
+      notification = `
+✅ *EMERGENCY FULLY RESOLVED*
+
+Helper: ${emergency.helperName}
+Location: ${emergency.location.name}
+
+⏱️ Total Response Time: ${responseTime}s (${Math.floor(responseTime / 60)}m ${responseTime % 60}s)
+
+✅ ALL SYSTEMS NORMAL
+      `;
+    }
+
+    if (notification) {
+      console.log(`   📢 Sending to main bot: ${eventType}`);
+      await mainBot.sendMessage(mainChatId, notification, {
+        parse_mode: "Markdown",
+      });
+      console.log(`   ✅ Main bot notified`);
+    }
+  } catch (err) {
+    console.error("❌ Error sending to main bot:", err.message);
+  }
+}
 
 // ════════════════════════════════════════════════════════════
 // MESSAGE HANDLER
@@ -571,21 +583,22 @@ helperBot.on("message", async (msg) => {
 
 Your Chat ID: \`${msg.chat.id}\`
 
-Put this in .env as:
+Add to .env:
 \`HELPER_CHAT_ID=${msg.chat.id}\`
 
-Waiting for emergency alerts with interactive buttons...
-
-No more typing YES - just click buttons! 🔘`,
+Waiting for emergency alerts...
+Just click buttons! 🔘`,
       { parse_mode: "Markdown" },
     );
   }
 });
 
-helperBot.on("polling_error", console.log);
+helperBot.on("polling_error", (err) => {
+  console.log("Polling error:", err.message);
+});
 
 // ════════════════════════════════════════════════════════════
-// EXPORT FOR USE IN YOUR SENSOR CONTROLLER
+// EXPORT
 // ════════════════════════════════════════════════════════════
 
 module.exports = {
