@@ -3,15 +3,19 @@ require("dotenv").config();
 const TelegramBot = require("node-telegram-bot-api");
 const notificationService = require("./notificationService");
 
+// ════════════════════════════════════════════════════════════
+// BOTS
+// ════════════════════════════════════════════════════════════
+
 // HELPER BOT
 const helperBot = new TelegramBot(process.env.HELPER_BOT_TOKEN, {
   polling: true,
 });
 
-// MAIN BOT (NO POLLING)
+// MAIN BOT
 const mainBot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 
-console.log("✅ Helper Bot Started - INTERACTIVE BUTTONS");
+console.log("✅ Helper Bot Started Successfully");
 
 // ════════════════════════════════════════════════════════════
 // EMERGENCY TRACKER
@@ -21,7 +25,7 @@ const emergencyTracker = new Map();
 
 function storeEmergency(id, data) {
   emergencyTracker.set(id, data);
-  console.log(`✅ Emergency ${id} stored`);
+  console.log(`✅ Emergency Stored: ${id}`);
 }
 
 function getEmergency(id) {
@@ -38,7 +42,10 @@ const locationDatabase = {
     building: "Main Building",
     floor: "Ground Floor",
     address: "Factory Address",
-    coordinates: { lat: 19.0176, lng: 72.8479 },
+    coordinates: {
+      lat: 19.0176,
+      lng: 72.8479,
+    },
   },
 
   2: {
@@ -46,7 +53,10 @@ const locationDatabase = {
     building: "Warehouse",
     floor: "First Floor",
     address: "Factory Address",
-    coordinates: { lat: 19.0176, lng: 72.8479 },
+    coordinates: {
+      lat: 19.0176,
+      lng: 72.8479,
+    },
   },
 };
 
@@ -59,7 +69,7 @@ async function sendEmergencyAlert(roomId, sensorData) {
     const helperChatId = process.env.HELPER_CHAT_ID;
 
     if (!helperChatId) {
-      console.log("❌ HELPER_CHAT_ID missing");
+      console.log("❌ HELPER_CHAT_ID missing in .env");
       return;
     }
 
@@ -68,9 +78,13 @@ async function sendEmergencyAlert(roomId, sensorData) {
       building: "Unknown",
       floor: "Unknown",
       address: "Unknown",
-      coordinates: { lat: 0, lng: 0 },
+      coordinates: {
+        lat: 0,
+        lng: 0,
+      },
     };
 
+    // UNIQUE EMERGENCY ID
     const emergencyId = `EMG_${Date.now()}`;
 
     const emergency = {
@@ -85,23 +99,87 @@ async function sendEmergencyAlert(roomId, sensorData) {
 
     storeEmergency(emergencyId, emergency);
 
+    // ═══════════════════════════════
+    // HAZARD ANALYSIS
+    // ═══════════════════════════════
+
+    let dangerReason = "";
+    let severity = "⚠️ MEDIUM";
+
+    if (sensorData.temperature >= 70) {
+      dangerReason += `🔥 High Temperature Detected (${sensorData.temperature}°C)\n`;
+    }
+
+    if (sensorData.mq2 >= 300) {
+      dangerReason += `💨 MQ2 Gas Leak Detected\n`;
+      dangerReason += `Possible: LPG / CNG / Butane / Smoke\n`;
+    }
+
+    if (sensorData.mq4 >= 300) {
+      dangerReason += `🔥 MQ4 Methane Gas Detected\n`;
+    }
+
+    if (sensorData.flame) {
+      dangerReason += `🚨 Flame Detected\n`;
+      severity = "🚨 CRITICAL";
+    }
+
+    if (
+      sensorData.temperature >= 90 ||
+      sensorData.mq2 >= 500 ||
+      sensorData.mq4 >= 500
+    ) {
+      severity = "🚨 CRITICAL";
+    }
+
+    // ═══════════════════════════════
+    // ALERT MESSAGE
+    // ═══════════════════════════════
+
     const alertMessage = `
 🚨 *EMERGENCY ALERT*
 
+${severity}
+
 📍 *Location:* ${location.name}
 
-⚠️ *Alert:* ${sensorData.message}
+🏢 Building: ${location.building}
+🏠 Floor: ${location.floor}
 
-🌡️ Temp: ${sensorData.temperature}°C
+━━━━━━━━━━━━━━━
+⚠️ *Detected Hazard*
+━━━━━━━━━━━━━━━
+
+${dangerReason || "Unknown Hazard"}
+
+━━━━━━━━━━━━━━━
+📊 *Sensor Readings*
+━━━━━━━━━━━━━━━
+
+🌡️ Temperature: ${sensorData.temperature}°C
 💧 Humidity: ${sensorData.humidity}%
-💨 MQ2: ${sensorData.mq2}
-🔥 MQ4: ${sensorData.mq4}
 
-⏰ ${new Date().toLocaleTimeString()}
+💨 MQ2 Sensor: ${sensorData.mq2}
+Possible: LPG / CNG / Butane / Smoke
+
+🔥 MQ4 Sensor: ${sensorData.mq4}
+Possible: Methane Gas
+
+🔴 Flame Sensor:
+${sensorData.flame ? "YES - FIRE DETECTED" : "NO"}
+
+⏰ Time: ${new Date().toLocaleTimeString()}
+
+⚡ Immediate action may be required.
 `;
+
+    // ═══════════════════════════════
+    // SEND MESSAGE
+    // ═══════════════════════════════
 
     await helperBot.sendMessage(helperChatId, alertMessage, {
       parse_mode: "Markdown",
+
       reply_markup: {
         inline_keyboard: [
           [
@@ -115,11 +193,23 @@ async function sendEmergencyAlert(roomId, sensorData) {
               callback_data: `reject_${emergencyId}`,
             },
           ],
+
+          [
+            {
+              text: "📋 View Details",
+              callback_data: `details_${emergencyId}`,
+            },
+
+            {
+              text: "📍 View Location",
+              callback_data: `location_${emergencyId}`,
+            },
+          ],
         ],
       },
     });
 
-    console.log("✅ Emergency alert sent");
+    console.log("✅ Emergency Alert Sent");
   } catch (err) {
     console.log("❌ sendEmergencyAlert Error:", err.message);
   }
@@ -134,12 +224,12 @@ helperBot.on("callback_query", async (query) => {
 
   const helperName = from.first_name || "Helper";
 
-  console.log("🔘 Button:", data);
+  console.log("🔘 Button Clicked:", data);
 
   try {
-    // ═══════════════════════════════════
+    // ═══════════════════════════════
     // ACCEPT
-    // ═══════════════════════════════════
+    // ═══════════════════════════════
 
     if (data.startsWith("accept_")) {
       const emergencyId = data.replace("accept_", "").trim();
@@ -154,10 +244,10 @@ helperBot.on("callback_query", async (query) => {
         return;
       }
 
-      // prevent duplicate accept
+      // Prevent duplicate accept
       if (emergency.status === "accepted") {
         await helperBot.answerCallbackQuery(id, {
-          text: "⚠️ Emergency already accepted",
+          text: "⚠️ Already accepted",
           show_alert: false,
         });
         return;
@@ -167,7 +257,6 @@ helperBot.on("callback_query", async (query) => {
       emergency.helperName = helperName;
       emergency.acceptedAt = new Date();
 
-      // update helper message
       await helperBot.editMessageText(
         `
 ✅ *Emergency Accepted*
@@ -197,13 +286,13 @@ Have you arrived?
         },
       );
 
-      // notify main bot
+      // SEND TO MAIN BOT
       await mainBot.sendMessage(
         process.env.MAIN_CHAT_ID,
         `
 ✅ *Emergency Accepted*
 
-👤 Helper: ${helperName}
+👤 ${helperName}
 📍 ${emergency.location.name}
 
 🚗 Helper is coming quickly.
@@ -214,69 +303,14 @@ Have you arrived?
       );
 
       await helperBot.answerCallbackQuery(id, {
-        text: "Accepted successfully",
+        text: "Accepted Successfully",
         show_alert: false,
       });
     }
 
-    // ═══════════════════════════════════
-    // ARRIVED
-    // ═══════════════════════════════════
-    else if (data.startsWith("arrived_")) {
-      const emergencyId = data.replace("arrived_", "").trim();
-
-      const emergency = getEmergency(emergencyId);
-
-      if (!emergency) {
-        await helperBot.answerCallbackQuery(id, {
-          text: "❌ Emergency not found",
-          show_alert: true,
-        });
-        return;
-      }
-
-      emergency.status = "arrived";
-      emergency.arrivedAt = new Date();
-
-      await helperBot.editMessageText(
-        `
-🚗 *Helper Arrived Successfully*
-
-👤 ${helperName}
-📍 ${emergency.location.name}
-
-✅ Waiting for further action.
-`,
-        {
-          chat_id: message.chat.id,
-          message_id: message.message_id,
-          parse_mode: "Markdown",
-        },
-      );
-
-      // notify main bot
-      await mainBot.sendMessage(
-        process.env.MAIN_CHAT_ID,
-        `
-🚗 *Helper has arrived at the location.*
-
-👤 ${helperName}
-📍 ${emergency.location.name}
-`,
-        {
-          parse_mode: "Markdown",
-        },
-      );
-
-      await helperBot.answerCallbackQuery(id, {
-        text: "Arrival recorded",
-        show_alert: false,
-      });
-    }
-
-    // ═══════════════════════════════════
+    // ═══════════════════════════════
     // REJECT
-    // ═══════════════════════════════════
+    // ═══════════════════════════════
     else if (data.startsWith("reject_")) {
       const emergencyId = data.replace("reject_", "").trim();
 
@@ -326,6 +360,153 @@ Have you arrived?
         show_alert: false,
       });
     }
+
+    // ═══════════════════════════════
+    // VIEW DETAILS
+    // ═══════════════════════════════
+    else if (data.startsWith("details_")) {
+      const emergencyId = data.replace("details_", "").trim();
+
+      const emergency = getEmergency(emergencyId);
+
+      if (!emergency) {
+        await helperBot.answerCallbackQuery(id, {
+          text: "❌ Emergency not found",
+          show_alert: true,
+        });
+        return;
+      }
+
+      const detailsMessage = `
+📋 *Emergency Details*
+
+📍 Location: ${emergency.location.name}
+
+🏢 Building: ${emergency.location.building}
+🏠 Floor: ${emergency.location.floor}
+
+⚠️ Alert: ${emergency.sensorData.message}
+
+🌡️ Temperature: ${emergency.sensorData.temperature}°C
+💧 Humidity: ${emergency.sensorData.humidity}%
+
+💨 MQ2: ${emergency.sensorData.mq2}
+Detects: LPG / CNG / Butane / Smoke
+
+🔥 MQ4: ${emergency.sensorData.mq4}
+Detects: Methane Gas
+
+🔴 Flame:
+${emergency.sensorData.flame ? "YES" : "NO"}
+
+⏰ ${emergency.detectedAt.toLocaleTimeString()}
+`;
+
+      await helperBot.sendMessage(from.id, detailsMessage, {
+        parse_mode: "Markdown",
+      });
+
+      await helperBot.answerCallbackQuery(id, {
+        text: "📋 Details Sent",
+        show_alert: false,
+      });
+    }
+
+    // ═══════════════════════════════
+    // VIEW LOCATION
+    // ═══════════════════════════════
+    else if (data.startsWith("location_")) {
+      const emergencyId = data.replace("location_", "").trim();
+
+      const emergency = getEmergency(emergencyId);
+
+      if (!emergency) {
+        await helperBot.answerCallbackQuery(id, {
+          text: "❌ Emergency not found",
+          show_alert: true,
+        });
+        return;
+      }
+
+      await helperBot.sendLocation(
+        from.id,
+        emergency.location.coordinates.lat,
+        emergency.location.coordinates.lng,
+      );
+
+      await helperBot.sendMessage(
+        from.id,
+        `
+📍 *Factory Location*
+
+🏢 ${emergency.location.name}
+📌 ${emergency.location.address}
+`,
+        {
+          parse_mode: "Markdown",
+        },
+      );
+
+      await helperBot.answerCallbackQuery(id, {
+        text: "📍 Location Sent",
+        show_alert: false,
+      });
+    }
+
+    // ═══════════════════════════════
+    // ARRIVED
+    // ═══════════════════════════════
+    else if (data.startsWith("arrived_")) {
+      const emergencyId = data.replace("arrived_", "").trim();
+
+      const emergency = getEmergency(emergencyId);
+
+      if (!emergency) {
+        await helperBot.answerCallbackQuery(id, {
+          text: "❌ Emergency not found",
+          show_alert: true,
+        });
+        return;
+      }
+
+      emergency.status = "arrived";
+      emergency.arrivedAt = new Date();
+
+      await helperBot.editMessageText(
+        `
+🚗 *Helper Arrived Successfully*
+
+👤 ${helperName}
+📍 ${emergency.location.name}
+
+✅ Waiting for further action.
+`,
+        {
+          chat_id: message.chat.id,
+          message_id: message.message_id,
+          parse_mode: "Markdown",
+        },
+      );
+
+      // SEND TO MAIN BOT
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
+🚗 *Helper has arrived at the location.*
+
+👤 ${helperName}
+📍 ${emergency.location.name}
+`,
+        {
+          parse_mode: "Markdown",
+        },
+      );
+
+      await helperBot.answerCallbackQuery(id, {
+        text: "Arrival Recorded",
+        show_alert: false,
+      });
+    }
   } catch (err) {
     console.log("❌ CALLBACK ERROR:", err.message);
 
@@ -339,7 +520,7 @@ Have you arrived?
 });
 
 // ════════════════════════════════════════════════════════════
-// START MESSAGE
+// START COMMAND
 // ════════════════════════════════════════════════════════════
 
 helperBot.on("message", async (msg) => {
@@ -352,7 +533,7 @@ helperBot.on("message", async (msg) => {
 Your Chat ID:
 \`${msg.chat.id}\`
 
-Add in .env:
+Add this in .env:
 
 \`HELPER_CHAT_ID=${msg.chat.id}\`
 \`MAIN_CHAT_ID=${msg.chat.id}\`
@@ -366,9 +547,9 @@ Waiting for emergency alerts...
   }
 });
 
-// polling error
+// POLLING ERROR
 helperBot.on("polling_error", (err) => {
-  console.log("Polling error:", err.message);
+  console.log("Polling Error:", err.message);
 });
 
 // EXPORT
