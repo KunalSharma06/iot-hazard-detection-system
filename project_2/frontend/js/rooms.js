@@ -3,6 +3,76 @@
    ════════════════════════════════════════════════ */
 
 const RoomsPage = (() => {
+
+
+
+   let lastSpokenAlert = "";
+  let lastSpeakTime = 0;
+
+  function speakAlert(message) {
+    const now = Date.now();
+
+    // Prevent repeat spam for 10 sec
+    if (
+      lastSpokenAlert === message &&
+      now - lastSpeakTime < 10000
+    ) {
+      return;
+    }
+
+    lastSpokenAlert = message;
+    lastSpeakTime = now;
+
+    // Stop previous voice
+    window.speechSynthesis.cancel();
+
+    const speech = new SpeechSynthesisUtterance(message);
+
+    speech.lang = "en-US";
+    speech.volume = 1;
+    speech.rate = 0.9;
+    speech.pitch = 1;
+
+    window.speechSynthesis.speak(speech);
+  }
+
+  // ═══════════════════════════════
+  // CHECK SENSOR ALERTS
+  // ═══════════════════════════════
+
+  function checkVoiceAlerts(room) {
+
+    if (!room.online) return;
+
+    // FIRE
+    if (room.alerts?.fire) {
+      speakAlert(
+        `Critical alert. Fire detected in Room ${room.room}`
+      );
+    }
+
+    // LPG / MQ2
+    else if (room.alerts?.mq2) {
+      speakAlert(
+        `Warning. LPG or smoke gas detected in Room ${room.room}`
+      );
+    }
+
+    // METHANE / MQ4
+    else if (room.alerts?.mq4) {
+      speakAlert(
+        `Danger. Methane gas detected in Room ${room.room}`
+      );
+    }
+
+    // TEMPERATURE
+    else if (room.alerts?.temp) {
+      speakAlert(
+        `Warning. High temperature detected in Room ${room.room}`
+      );
+    }
+  }
+
   function _pillClass(status) {
     if (status === "danger") return "pill-danger";
     if (status === "warning") return "pill-warning";
@@ -189,8 +259,15 @@ const room2HTML = room2?.online
   // ── Full render (first load) ─────────────────── //
   function render(rooms, onClickFn) {
     const grid = document.getElementById("room-grid");
+
     grid.innerHTML = "";
-    rooms.forEach((r) => grid.appendChild(_buildCard(r, onClickFn, rooms)));
+
+    rooms.forEach((r) => {
+      // ✅ SPEAK ALERT ON FIRST LOAD
+      checkVoiceAlerts(r);
+
+      grid.appendChild(_buildCard(r, onClickFn, rooms));
+    });
   }
 
   // ── Update existing cards in-place ──────────── //
@@ -203,7 +280,10 @@ const room2HTML = room2?.online
     }
     // Replace each card element
     rooms.forEach((r, i) => {
+      checkVoiceAlerts(r);
+
       const newCard = _buildCard(r, onClickFn, rooms);
+
       grid.replaceChild(newCard, grid.children[i]);
     });
   }
