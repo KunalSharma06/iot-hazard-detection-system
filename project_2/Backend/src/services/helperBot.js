@@ -13,21 +13,12 @@ const helperBot = new TelegramBot(process.env.HELPER_BOT_TOKEN, {
 });
 
 // MAIN BOT
-const mainBot = new TelegramBot(process.env.TELEGRAM_TOKEN, {
-  polling: true,
-});
+const mainBot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 
-console.log("✅ Factory Emergency System Started");
+console.log("✅ Helper Bot Started Successfully");
 
 // ════════════════════════════════════════════════════════════
-// AUTO REGISTER USERS
-// ════════════════════════════════════════════════════════════
-
-const helperUsers = new Set();
-const mainUsers = new Set();
-
-// ════════════════════════════════════════════════════════════
-// EMERGENCY STORAGE
+// EMERGENCY TRACKER
 // ════════════════════════════════════════════════════════════
 
 const emergencyTracker = new Map();
@@ -75,8 +66,10 @@ const locationDatabase = {
 
 async function sendEmergencyAlert(roomId, sensorData) {
   try {
-    if (helperUsers.size === 0) {
-      console.log("❌ No helpers registered");
+    const helperChatId = process.env.HELPER_CHAT_ID;
+
+    if (!helperChatId) {
+      console.log("❌ HELPER_CHAT_ID missing in .env");
       return;
     }
 
@@ -180,59 +173,41 @@ ${sensorData.flame ? "YES - FIRE DETECTED" : "NO"}
 ⚡ Immediate action may be required.
 `;
 
-    // SEND TO ALL HELPERS
-    for (const helperId of helperUsers) {
-      await helperBot.sendMessage(helperId, alertMessage, {
-        parse_mode: "Markdown",
+    // ═══════════════════════════════
+    // SEND MESSAGE
+    // ═══════════════════════════════
 
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "✅ Accept & Going",
-                callback_data: `accept_${emergencyId}`,
-              },
+    await helperBot.sendMessage(helperChatId, alertMessage, {
+      parse_mode: "Markdown",
 
-              {
-                text: "❌ Reject",
-                callback_data: `reject_${emergencyId}`,
-              },
-            ],
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "✅ Accept & Going",
+              callback_data: `accept_${emergencyId}`,
+            },
 
-            [
-              {
-                text: "📋 View Details",
-                callback_data: `details_${emergencyId}`,
-              },
-
-              {
-                text: "📍 View Location",
-                callback_data: `location_${emergencyId}`,
-              },
-            ],
+            {
+              text: "❌ Reject",
+              callback_data: `reject_${emergencyId}`,
+            },
           ],
-        },
-      });
-    }
 
-    // SEND ALERT TO ALL MAIN USERS
-    for (const userId of mainUsers) {
-      await mainBot.sendMessage(
-        userId,
-        `
-🚨 *Factory Emergency Detected*
+          [
+            {
+              text: "📋 View Details",
+              callback_data: `details_${emergencyId}`,
+            },
 
-📍 ${location.name}
-
-⚠️ ${dangerReason || "Emergency detected"}
-
-👷 Waiting for helper response...
-`,
-        {
-          parse_mode: "Markdown",
-        },
-      );
-    }
+            {
+              text: "📍 View Location",
+              callback_data: `location_${emergencyId}`,
+            },
+          ],
+        ],
+      },
+    });
 
     console.log("✅ Emergency Alert Sent");
   } catch (err) {
@@ -269,11 +244,11 @@ helperBot.on("callback_query", async (query) => {
         return;
       }
 
-      // ALREADY ACCEPTED
+      // Prevent duplicate accept
       if (emergency.status === "accepted") {
         await helperBot.answerCallbackQuery(id, {
-          text: "⚠️ Already accepted by another helper",
-          show_alert: true,
+          text: "⚠️ Already accepted",
+          show_alert: false,
         });
         return;
       }
@@ -282,7 +257,6 @@ helperBot.on("callback_query", async (query) => {
       emergency.helperName = helperName;
       emergency.acceptedAt = new Date();
 
-      // UPDATE HELPER MESSAGE
       await helperBot.editMessageText(
         `
 ✅ *Emergency Accepted*
@@ -312,11 +286,10 @@ Have you arrived?
         },
       );
 
-      // SEND TO ALL MAIN USERS
-      for (const userId of mainUsers) {
-        await mainBot.sendMessage(
-          userId,
-          `
+      // SEND TO MAIN BOT
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
 ✅ *Emergency Accepted*
 
 👤 ${helperName}
@@ -324,11 +297,10 @@ Have you arrived?
 
 🚗 Helper is coming quickly.
 `,
-          {
-            parse_mode: "Markdown",
-          },
-        );
-      }
+        {
+          parse_mode: "Markdown",
+        },
+      );
 
       await helperBot.answerCallbackQuery(id, {
         text: "Accepted Successfully",
@@ -370,20 +342,18 @@ Have you arrived?
         },
       );
 
-      for (const userId of mainUsers) {
-        await mainBot.sendMessage(
-          userId,
-          `
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
 ❌ *Emergency Rejected*
 
 👤 ${helperName}
 📍 ${emergency.location.name}
 `,
-          {
-            parse_mode: "Markdown",
-          },
-        );
-      }
+        {
+          parse_mode: "Markdown",
+        },
+      );
 
       await helperBot.answerCallbackQuery(id, {
         text: "Rejected",
@@ -392,7 +362,7 @@ Have you arrived?
     }
 
     // ═══════════════════════════════
-    // DETAILS
+    // VIEW DETAILS
     // ═══════════════════════════════
     else if (data.startsWith("details_")) {
       const emergencyId = data.replace("details_", "").trim();
@@ -410,18 +380,21 @@ Have you arrived?
       const detailsMessage = `
 📋 *Emergency Details*
 
-📍 ${emergency.location.name}
+📍 Location: ${emergency.location.name}
 
-🏢 ${emergency.location.building}
-🏠 ${emergency.location.floor}
+🏢 Building: ${emergency.location.building}
+🏠 Floor: ${emergency.location.floor}
 
-⚠️ ${emergency.sensorData.message}
+⚠️ Alert: ${emergency.sensorData.message}
 
 🌡️ Temperature: ${emergency.sensorData.temperature}°C
 💧 Humidity: ${emergency.sensorData.humidity}%
 
 💨 MQ2: ${emergency.sensorData.mq2}
+Detects: LPG / CNG / Butane / Smoke
+
 🔥 MQ4: ${emergency.sensorData.mq4}
+Detects: Methane Gas
 
 🔴 Flame:
 ${emergency.sensorData.flame ? "YES" : "NO"}
@@ -440,7 +413,7 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
     }
 
     // ═══════════════════════════════
-    // LOCATION
+    // VIEW LOCATION
     // ═══════════════════════════════
     else if (data.startsWith("location_")) {
       const emergencyId = data.replace("location_", "").trim();
@@ -515,21 +488,19 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
         },
       );
 
-      // SEND TO MAIN USERS
-      for (const userId of mainUsers) {
-        await mainBot.sendMessage(
-          userId,
-          `
-🚗 *Helper Arrived*
+      // SEND TO MAIN BOT
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
+🚗 *Helper has arrived at the location.*
 
 👤 ${helperName}
 📍 ${emergency.location.name}
 `,
-          {
-            parse_mode: "Markdown",
-          },
-        );
-      }
+        {
+          parse_mode: "Markdown",
+        },
+      );
 
       await helperBot.answerCallbackQuery(id, {
         text: "Arrival Recorded",
@@ -549,21 +520,25 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
 });
 
 // ════════════════════════════════════════════════════════════
-// HELPER REGISTRATION
+// START COMMAND
 // ════════════════════════════════════════════════════════════
 
 helperBot.on("message", async (msg) => {
   if (msg.text === "/start") {
-    helperUsers.add(msg.chat.id);
-
-    console.log("✅ Helper Registered:", msg.chat.id);
-
     await helperBot.sendMessage(
       msg.chat.id,
       `
-👷 *Factory Helper Registered*
+✅ *Helper Bot Ready*
 
-You will now receive emergency alerts.
+Your Chat ID:
+\`${msg.chat.id}\`
+
+Add this in .env:
+
+\`HELPER_CHAT_ID=${msg.chat.id}\`
+\`MAIN_CHAT_ID=${msg.chat.id}\`
+
+Waiting for emergency alerts...
 `,
       {
         parse_mode: "Markdown",
@@ -572,50 +547,12 @@ You will now receive emergency alerts.
   }
 });
 
-// ════════════════════════════════════════════════════════════
-// MAIN USER REGISTRATION
-// ════════════════════════════════════════════════════════════
-
-mainBot.on("message", async (msg) => {
-  if (msg.text === "/start") {
-    mainUsers.add(msg.chat.id);
-
-    console.log("✅ Main User Registered:", msg.chat.id);
-
-    await mainBot.sendMessage(
-      msg.chat.id,
-      `
-🏭 *Hazard Monitor System*
-
-You will now receive:
-
-🚨 Emergency alerts
-👷 Helper updates
-🚗 Arrival notifications
-`,
-      {
-        parse_mode: "Markdown",
-      },
-    );
-  }
-});
-
-// ════════════════════════════════════════════════════════════
 // POLLING ERROR
-// ════════════════════════════════════════════════════════════
-
 helperBot.on("polling_error", (err) => {
-  console.log("Helper Bot Error:", err.message);
+  console.log("Polling Error:", err.message);
 });
 
-mainBot.on("polling_error", (err) => {
-  console.log("Main Bot Error:", err.message);
-});
-
-// ════════════════════════════════════════════════════════════
 // EXPORT
-// ════════════════════════════════════════════════════════════
-
 module.exports = {
   sendEmergencyAlert,
   emergencyTracker,
