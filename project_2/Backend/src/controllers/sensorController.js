@@ -1,32 +1,12 @@
+// ════════════════════════════════════════════════════════════
+// UPDATED sensorController.js - Integration with new helper bot
+// ════════════════════════════════════════════════════════════
+
 const roomStore = require("../models/roomstore");
 const notificationService = require("../services/notificationService");
 const thresholds = require("../config/threshold");
-
-// At the top of your file
 const alertTracker = require("../models/alertTracker");
 const emergencyService = require("../services/emergencyService");
-
-// Add this function to check offline status
-async function monitorOfflineStatus(roomId) {
-  const room = roomStore.getRoom(roomId);
-  const isCurrentlyOffline = !room || (Date.now() - room.lastSeen > thresholds.offlineAfterSeconds * 1000);
-  
-  // This tracks state and returns true ONLY on transition: online → offline
-  const justWentOffline = alertTracker.setOffline(roomId, isCurrentlyOffline);
-  
-  if (justWentOffline) {
-    console.log(`[OFFLINE ALERT] Room ${roomId} is now OFFLINE`);
-    await notificationService.sendOfflineAlert(roomId);
-  }
-}
-
-// Call monitorOfflineStatus(roomId) periodically in your main loop
-// Example: every 5 seconds check each room
-setInterval(async () => {
-  for (let roomId = 1; roomId <= 2; roomId++) {
-    await monitorOfflineStatus(roomId);
-  }
-}, 5000);
 
 const prevState = {};
 
@@ -36,7 +16,7 @@ async function receiveData(req, res, next) {
     const room = saved.room;
 
     console.log(
-      `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame} Status:${saved.overallStatus}`,
+      `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame}`,
     );
 
     // ── Current LEVEL state ──────────────────────────────
@@ -69,8 +49,9 @@ async function receiveData(req, res, next) {
           current.mq2,
         );
 
+        // SEND INTERACTIVE EMERGENCY ALERT
         if (current.mq2 === "danger") {
-          await emergencyService.startEmergency(room);
+          await emergencyService.startEmergency(room, saved);
         }
       }
     }
@@ -84,9 +65,11 @@ async function receiveData(req, res, next) {
           { ...saved, _thresholds: thresholds },
           current.mq4,
         );
-         if (current.mq4 === "danger") {
-           await emergencyService.startEmergency(room);
-         }
+
+        // SEND INTERACTIVE EMERGENCY ALERT
+        if (current.mq4 === "danger") {
+          await emergencyService.startEmergency(room, saved);
+        }
       }
     }
 
@@ -99,6 +82,11 @@ async function receiveData(req, res, next) {
           { ...saved, _thresholds: thresholds },
           current.temp,
         );
+
+        // SEND INTERACTIVE EMERGENCY ALERT FOR DANGEROUS TEMP
+        if (current.temp === "danger") {
+          await emergencyService.startEmergency(room, saved);
+        }
       }
     }
 
@@ -110,7 +98,9 @@ async function receiveData(req, res, next) {
         { ...saved, _thresholds: thresholds },
         "danger",
       );
-      await emergencyService.startEmergency(room);
+
+      // SEND INTERACTIVE EMERGENCY ALERT - FIRE DETECTED
+      await emergencyService.startEmergency(room, saved);
     }
 
     // ── ALL CLEAR — when all go back to safe ─────────────
