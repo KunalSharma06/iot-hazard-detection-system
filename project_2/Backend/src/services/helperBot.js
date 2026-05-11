@@ -174,69 +174,79 @@ helperBot.on("callback_query", async (query) => {
     // ACCEPT
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (data.startsWith("accept_")) {
-      const emergencyId = data.replace("accept_", "");
-      console.log(`   Looking for emergency: ${emergencyId}`);
+      const emergencyId = data.replace("accept_", "").trim();
 
-      const emergency = getEmergency(emergencyId);
+      console.log("Accept clicked for:", emergencyId);
+      console.log("Available IDs:", [...emergencyTracker.keys()]);
+
+      let emergency = getEmergency(emergencyId);
+
+      // fallback check
+      if (!emergency && emergencyTracker.size > 0) {
+        emergency = [...emergencyTracker.values()].find(
+          (e) => e.status === "pending",
+        );
+      }
 
       if (!emergency) {
-        console.log(`   ❌ NOT FOUND - Showing user alert`);
         await helperBot.answerCallbackQuery(id, {
-          text: "❌ Emergency not found or already handled",
+          text: "❌ Emergency not found",
           show_alert: true,
         });
         return;
       }
 
-      console.log(`   ✅ FOUND - Processing acceptance`);
-
       emergency.status = "accepted";
       emergency.helperName = helperName;
       emergency.acceptedAt = new Date();
 
-      // Edit the message
-      const editMessage = `
-✅ *EMERGENCY ACCEPTED*
+      // Update helper message
+      await helperBot.editMessageText(
+        `
+✅ *Emergency Accepted*
 
-📍 *Location:*
-${emergency.location.name}
-${emergency.location.building}
+👤 Helper: ${helperName}
+📍 Location: ${emergency.location.name}
 
-👤 *Helper:* ${helperName}
-⏰ *Time:* ${emergency.acceptedAt.toLocaleTimeString()}
+🚗 OK, please come quickly.
 
-⏱️ *ETA: 3-5 MINUTES*
-🚗 *On the way to your location*
-
-*Status: HELPER ARRIVING SOON*
-      `;
-
-      await helperBot.editMessageText(editMessage, {
-        chat_id: message.chat.id,
-        message_id: message.message_id,
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "🚗 Arrived",
-                callback_data: `arrived_${emergencyId}`,
-              },
-              {
-                text: "✅ Resolved",
-                callback_data: `resolved_${emergencyId}`,
-              },
+Have you arrived?
+    `,
+        {
+          chat_id: message.chat.id,
+          message_id: message.message_id,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "✅ Yes, Arrived",
+                  callback_data: `arrived_${emergency.id}`,
+                },
+              ],
             ],
-          ],
+          },
         },
-      });
+      );
 
-      // SEND TO MAIN BOT
-      console.log(`   📢 Sending to main bot...`);
-      await sendToMainBot(emergency, "ACCEPTED");
+      // Send notification to MAIN BOT
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
+✅ *Emergency Accepted*
+
+👤 Helper: ${helperName}
+📍 Location: ${emergency.location.name}
+
+🚗 Helper is coming quickly.
+    `,
+        {
+          parse_mode: "Markdown",
+        },
+      );
 
       await helperBot.answerCallbackQuery(id, {
-        text: "✅ Accepted! ETA 3-5 minutes",
+        text: "Accepted successfully",
         show_alert: false,
       });
     }
@@ -380,7 +390,8 @@ Lng: ${emergency.location.coordinates.lng}
     // ARRIVED
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     else if (data.startsWith("arrived_")) {
-      const emergencyId = data.replace("arrived_", "");
+      const emergencyId = data.replace("arrived_", "").trim();
+
       const emergency = getEmergency(emergencyId);
 
       if (!emergency) {
@@ -394,37 +405,38 @@ Lng: ${emergency.location.coordinates.lng}
       emergency.status = "arrived";
       emergency.arrivedAt = new Date();
 
-      const arrivedMsg = `
-🚗 *HELPER ARRIVED*
+      await helperBot.editMessageText(
+        `
+🚗 *Helper Arrived Successfully*
+
+👤 Helper: ${helperName}
+📍 Location: ${emergency.location.name}
+
+✅ Waiting for further action.
+    `,
+        {
+          chat_id: message.chat.id,
+          message_id: message.message_id,
+          parse_mode: "Markdown",
+        },
+      );
+
+      // Notify MAIN BOT
+      await mainBot.sendMessage(
+        process.env.MAIN_CHAT_ID,
+        `
+🚗 *Helper 1 has arrived at the location.*
 
 📍 ${emergency.location.name}
-👤 Helper: ${helperName}
-⏰ Time: ${emergency.arrivedAt.toLocaleTimeString()}
-
-*Assessing situation...*
-      `;
-
-      await helperBot.editMessageText(arrivedMsg, {
-        chat_id: message.chat.id,
-        message_id: message.message_id,
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "✅ Resolved",
-                callback_data: `resolved_${emergencyId}`,
-              },
-            ],
-          ],
+👤 ${helperName}
+    `,
+        {
+          parse_mode: "Markdown",
         },
-      });
-
-      // NOTIFY MAIN BOT
-      await sendToMainBot(emergency, "ARRIVED");
+      );
 
       await helperBot.answerCallbackQuery(id, {
-        text: "✅ Arrival recorded",
+        text: "Arrival recorded",
         show_alert: false,
       });
     }
