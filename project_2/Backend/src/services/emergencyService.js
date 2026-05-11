@@ -1,28 +1,19 @@
-const helperBot = require("./helperBot");
+const { sendEmergencyAlert } = require("./helperBot");
 
-async function startEmergency(room) {
-  const helperChatId = process.env.HELPER_CHAT_ID;
-
-  if (!helperChatId) {
-    console.log("❌ No helper chat ID");
-
-    return;
-  }
-
+async function startEmergency(room, sensorData = {}) {
   try {
-    await helperBot.sendMessage(
-      helperChatId,
+    const emergencyId = await sendEmergencyAlert(room, {
+      temperature: sensorData.temperature || "N/A",
+      humidity: sensorData.humidity || "N/A",
+      message: sensorData.message || "Threshold exceeded",
+    });
 
-      `🚨 Emergency Alert
-
-Danger detected in Room ${room}.
-
-Reply YES if you can help.`,
-    );
-
-    console.log("✅ Emergency message sent");
+    if (emergencyId) {
+      console.log("✅ Emergency started with ID:", emergencyId);
+      return emergencyId;
+    }
   } catch (err) {
-    console.log(err);
+    console.error("❌ Error starting emergency:", err);
   }
 }
 
