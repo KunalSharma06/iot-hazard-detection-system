@@ -1,7 +1,12 @@
+
+
+
+
 require("dotenv").config();
 
 const TelegramBot = require("node-telegram-bot-api");
 const notificationService = require("./notificationService");
+const subscriberStore = require("../models/subscriberStore");
 
 // ════════════════════════════════════════════════════════════
 // BOTS
@@ -286,10 +291,13 @@ Have you arrived?
         },
       );
 
-      // SEND TO MAIN BOT
-      await mainBot.sendMessage(
-        process.env.MAIN_CHAT_ID,
-        `
+      // SEND TO ALL SUBSCRIBERS
+      const allSubscribers = subscriberStore.getAll();
+      for (const chatId of allSubscribers) {
+        try {
+          await mainBot.sendMessage(
+            chatId,
+            `
 ✅ *Emergency Accepted*
 
 👤 ${helperName}
@@ -297,10 +305,14 @@ Have you arrived?
 
 🚗 Helper is coming quickly.
 `,
-        {
-          parse_mode: "Markdown",
-        },
-      );
+            {
+              parse_mode: "Markdown",
+            },
+          );
+        } catch (err) {
+          console.error(`Failed to send to ${chatId}:`, err.message);
+        }
+      }
 
       await helperBot.answerCallbackQuery(id, {
         text: "Accepted Successfully",
@@ -342,18 +354,28 @@ Have you arrived?
         },
       );
 
-      await mainBot.sendMessage(
-        process.env.MAIN_CHAT_ID,
-        `
+      // SEND TO ALL SUBSCRIBERS
+      const allSubscribers = subscriberStore.getAll();
+      for (const chatId of allSubscribers) {
+        try {
+          await mainBot.sendMessage(
+            chatId,
+            `
 ❌ *Emergency Rejected*
 
 👤 ${helperName}
 📍 ${emergency.location.name}
+
+⚠️ Waiting for another helper...
 `,
-        {
-          parse_mode: "Markdown",
-        },
-      );
+            {
+              parse_mode: "Markdown",
+            },
+          );
+        } catch (err) {
+          console.error(`Failed to send to ${chatId}:`, err.message);
+        }
+      }
 
       await helperBot.answerCallbackQuery(id, {
         text: "Rejected",
@@ -488,19 +510,28 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
         },
       );
 
-      // SEND TO MAIN BOT
-      await mainBot.sendMessage(
-        process.env.MAIN_CHAT_ID,
-        `
+      // SEND TO ALL SUBSCRIBERS
+      const allSubscribers = subscriberStore.getAll();
+      for (const chatId of allSubscribers) {
+        try {
+          await mainBot.sendMessage(
+            chatId,
+            `
 🚗 *Helper has arrived at the location.*
 
 👤 ${helperName}
 📍 ${emergency.location.name}
+
+✅ Help is now available on-site.
 `,
-        {
-          parse_mode: "Markdown",
-        },
-      );
+            {
+              parse_mode: "Markdown",
+            },
+          );
+        } catch (err) {
+          console.error(`Failed to send to ${chatId}:`, err.message);
+        }
+      }
 
       await helperBot.answerCallbackQuery(id, {
         text: "Arrival Recorded",
@@ -547,6 +578,35 @@ Waiting for emergency alerts...
   }
 });
 
+// ════════════════════════════════════════════════════════════
+// MAIN BOT - REGISTER SUBSCRIBERS
+// ════════════════════════════════════════════════════════════
+
+mainBot.on("message", async (msg) => {
+  if (msg.text === "/start") {
+    subscriberStore.add(msg.chat.id);
+
+    await mainBot.sendMessage(
+      msg.chat.id,
+      `
+🏭 *Hazard Monitor System*
+
+✅ You are now registered!
+
+You will receive:
+🚨 Emergency alerts (DANGER)
+⚠️ Warning notifications
+👷 Helper updates (Accept/Reject/Arrive)
+
+All alerts broadcast to you.
+`,
+      {
+        parse_mode: "Markdown",
+      },
+    );
+  }
+});
+
 // POLLING ERROR
 helperBot.on("polling_error", (err) => {
   console.log("Polling Error:", err.message);
@@ -557,12 +617,6 @@ module.exports = {
   sendEmergencyAlert,
   emergencyTracker,
 };
-
-
-
-
-
-
 
 
 

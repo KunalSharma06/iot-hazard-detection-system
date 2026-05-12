@@ -10,10 +10,21 @@ const emergencyService = require("../services/emergencyService");
 
 const prevState = {};
 
+// ════════════════════════════════════════════════════════════
+// OFFLINE DETECTION - Track last update time for each room
+// ════════════════════════════════════════════════════════════
+
+const lastUpdate = {};
+const offlineAlerted = {};
+
 async function receiveData(req, res, next) {
   try {
     const saved = roomStore.upsertRoom(req.body);
     const room = saved.room;
+
+    // ✅ UPDATE TIMESTAMP WHEN DATA RECEIVED
+    lastUpdate[room] = Date.now();
+    offlineAlerted[room] = false; // Room came back online
 
     console.log(
       `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame}`,
@@ -133,5 +144,41 @@ function getLevel(value, warnAt, dangerAt) {
   if (value >= warnAt) return "warning";
   return "safe";
 }
+
+// ════════════════════════════════════════════════════════════
+// PERIODIC OFFLINE CHECK - Every 10 seconds
+// ════════════════════════════════════════════════════════════
+
+setInterval(() => {
+  const now = Date.now();
+  const OFFLINE_TIMEOUT = 30000; // 30 seconds
+
+  for (let roomId = 1; roomId <= 3; roomId++) {
+    const lastTime = lastUpdate[roomId];
+
+    if (lastTime) {
+      const timeSinceLastUpdate = now - lastTime;
+
+      // If no data for 30+ seconds
+      if (timeSinceLastUpdate > OFFLINE_TIMEOUT) {
+        // Only send alert ONCE per offline event
+        if (!offlineAlerted[roomId]) {
+          console.log(
+            `🚨 Room ${roomId} OFFLINE! Last update: ${timeSinceLastUpdate}ms ago`,
+          );
+          notificationService.sendOfflineAlert(roomId); // ← SENDS TO ALL SUBSCRIBERS
+          offlineAlerted[roomId] = true; // Mark as alerted
+        }
+      } else {
+        // Room is back online
+        if (offlineAlerted[roomId]) {
+          console.log(`✅ Room ${roomId} back ONLINE`);
+          notificationService.sendAllClear(roomId);
+          offlineAlerted[roomId] = false;
+        }
+      }
+    }
+  }
+}, 10000); // Check every 10 seconds
 
 module.exports = { receiveData };
