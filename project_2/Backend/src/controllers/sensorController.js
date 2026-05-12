@@ -151,7 +151,7 @@ function getLevel(value, warnAt, dangerAt) {
 
 setInterval(() => {
   const now = Date.now();
-  const OFFLINE_TIMEOUT = 30000; // 30 seconds
+  const OFFLINE_TIMEOUT = 20000; // 20 seconds
 
   for (let roomId = 1; roomId <= 3; roomId++) {
     const lastTime = lastUpdate[roomId];
@@ -159,7 +159,7 @@ setInterval(() => {
     if (lastTime) {
       const timeSinceLastUpdate = now - lastTime;
 
-      // If no data for 30+ seconds
+      // If no data for 20+ seconds
       if (timeSinceLastUpdate > OFFLINE_TIMEOUT) {
         // Only send alert ONCE per offline event
         if (!offlineAlerted[roomId]) {
