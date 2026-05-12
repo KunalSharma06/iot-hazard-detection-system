@@ -16,16 +16,14 @@ const helperBot = new TelegramBot(process.env.HELPER_BOT_TOKEN, {
 // MAIN BOT
 const mainBot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 
-// console.log("✅ Helper Bot Started Successfully");
-
 // ════════════════════════════════════════════════════════════
 // EMERGENCY TRACKER
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+
 const emergencyTracker = new Map();
 
 function storeEmergency(id, data) {
   emergencyTracker.set(id, data);
-  // console.log(`✅ Emergency Stored: ${id}`);
 }
 
 function getEmergency(id) {
@@ -69,7 +67,6 @@ async function sendEmergencyAlert(roomId, sensorData) {
     const helperChatId = process.env.HELPER_CHAT_ID;
 
     if (!helperChatId) {
-      // console.log("❌ HELPER_CHAT_ID missing in .env");
       return;
     }
 
@@ -173,10 +170,7 @@ ${sensorData.flame ? "YES - FIRE DETECTED" : "NO"}
 ⚡ Immediate action may be required.
 `;
 
-    // ═══════════════════════════════
-    // SEND MESSAGE
-    // ═══════════════════════════════
-
+    // SEND ALERT
     await helperBot.sendMessage(helperChatId, alertMessage, {
       parse_mode: "Markdown",
 
@@ -208,21 +202,19 @@ ${sensorData.flame ? "YES - FIRE DETECTED" : "NO"}
         ],
       },
     });
-
-    // console.log("✅ Emergency Alert Sent");
   } catch (err) {
-    // console.log("❌ sendEmergencyAlert Error:", err.message);
+    console.log("❌ sendEmergencyAlert Error:", err.message);
   }
 }
 
 // ════════════════════════════════════════════════════════════
 // CALLBACK HANDLER
-// ══════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+
+helperBot.on("callback_query", async (query) => {
   const { id, from, data, message } = query;
 
   const helperName = from.first_name || "Helper";
-
-  // console.log("🔘 Button Clicked:", data);
 
   try {
     // ═══════════════════════════════
@@ -242,7 +234,6 @@ ${sensorData.flame ? "YES - FIRE DETECTED" : "NO"}
         return;
       }
 
-      // Prevent duplicate accept
       if (emergency.status === "accepted") {
         await helperBot.answerCallbackQuery(id, {
           text: "⚠️ Already accepted",
@@ -286,6 +277,7 @@ Have you arrived?
 
       // SEND TO ALL SUBSCRIBERS
       const allSubscribers = subscriberStore.getAll();
+
       for (const chatId of allSubscribers) {
         try {
           await mainBot.sendMessage(
@@ -303,7 +295,7 @@ Have you arrived?
             },
           );
         } catch (err) {
-          // console.error(`Failed to send to ${chatId}:`, err.message);
+          console.log(err.message);
         }
       }
 
@@ -347,8 +339,8 @@ Have you arrived?
         },
       );
 
-      // SEND TO ALL SUBSCRIBERS
       const allSubscribers = subscriberStore.getAll();
+
       for (const chatId of allSubscribers) {
         try {
           await mainBot.sendMessage(
@@ -366,7 +358,7 @@ Have you arrived?
             },
           );
         } catch (err) {
-          // console.error(`Failed to send to ${chatId}:`, err.message);
+          console.log(err.message);
         }
       }
 
@@ -377,7 +369,7 @@ Have you arrived?
     }
 
     // ═══════════════════════════════
-    // VIEW DETAILS
+    // DETAILS
     // ═══════════════════════════════
     else if (data.startsWith("details_")) {
       const emergencyId = data.replace("details_", "").trim();
@@ -400,16 +392,11 @@ Have you arrived?
 🏢 Building: ${emergency.location.building}
 🏠 Floor: ${emergency.location.floor}
 
-⚠️ Alert: ${emergency.sensorData.message}
-
 🌡️ Temperature: ${emergency.sensorData.temperature}°C
 💧 Humidity: ${emergency.sensorData.humidity}%
 
 💨 MQ2: ${emergency.sensorData.mq2}
-Detects: LPG / CNG / Butane / Smoke
-
 🔥 MQ4: ${emergency.sensorData.mq4}
-Detects: Methane Gas
 
 🔴 Flame:
 ${emergency.sensorData.flame ? "YES" : "NO"}
@@ -428,7 +415,7 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
     }
 
     // ═══════════════════════════════
-    // VIEW LOCATION
+    // LOCATION
     // ═══════════════════════════════
     else if (data.startsWith("location_")) {
       const emergencyId = data.replace("location_", "").trim();
@@ -503,8 +490,8 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
         },
       );
 
-      // SEND TO ALL SUBSCRIBERS
       const allSubscribers = subscriberStore.getAll();
+
       for (const chatId of allSubscribers) {
         try {
           await mainBot.sendMessage(
@@ -522,7 +509,7 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
             },
           );
         } catch (err) {
-          // console.error(`Failed to send to ${chatId}:`, err.message);
+          console.log(err.message);
         }
       }
 
@@ -532,7 +519,7 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
       });
     }
   } catch (err) {
-    // console.log("❌ CALLBACK ERROR:", err.message);
+    console.log("❌ CALLBACK ERROR:", err.message);
 
     try {
       await helperBot.answerCallbackQuery(id, {
@@ -540,7 +527,8 @@ ${emergency.sensorData.flame ? "YES" : "NO"}
         show_alert: false,
       });
     } catch (e) {}
-}
+  }
+});
 
 // ════════════════════════════════════════════════════════════
 // START COMMAND
@@ -601,7 +589,7 @@ All alerts broadcast to you.
 
 // POLLING ERROR
 helperBot.on("polling_error", (err) => {
-  // console.log("Polling Error:", err.message);
+  console.log("Polling Error:", err.message);
 });
 
 // EXPORT
@@ -609,4 +597,3 @@ module.exports = {
   sendEmergencyAlert,
   emergencyTracker,
 };
-
