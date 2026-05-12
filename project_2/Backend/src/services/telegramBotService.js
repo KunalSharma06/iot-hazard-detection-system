@@ -38,7 +38,7 @@ async function sendTo(chatId, text) {
       }),
     });
   } catch (err) {
-    console.error("[BOT] sendTo error:", err.message);
+    // console.error("[BOT] sendTo error:", err.message);
   }
 }
 
@@ -122,7 +122,7 @@ async function handleMessage(msg) {
   const text = raw.toLowerCase();
   const name = msg.from?.first_name || "there";
 
-  console.log(`[BOT] From ${chatId} (${name}): ${raw}`);
+  // console.log(`[BOT] From ${chatId} (${name}): ${raw}`);
 
   // ── /start or /help ──────────────────────────────────────
   if (text === "/start" || text === "/help") {
@@ -342,11 +342,11 @@ async function handleMessage(msg) {
 // ── Long polling loop ─────────────────────────────────────────
 async function startPolling() {
   if (!config.telegram.enabled) {
-    console.log("[BOT] Telegram disabled in config — skipping");
+    // console.log("[BOT] Telegram disabled in config — skipping");
     return;
   }
 
-  console.log("[BOT] 🤖 Telegram bot started — polling for messages...");
+  // console.log("[BOT] 🤖 Telegram bot started — polling for messages...");
 
   // ← ADD THIS: skip all old messages on startup
   try {
@@ -355,7 +355,7 @@ async function startPolling() {
     const data = await res.json();
     if (data.ok && data.result.length > 0) {
       lastUpdate = data.result[data.result.length - 1].update_id;
-      console.log(`[BOT] Skipped old messages, starting from update: ${lastUpdate}`);
+      // console.log(`[BOT] Skipped old messages, starting from update: ${lastUpdate}`);
     }
   } catch (err) {}
 

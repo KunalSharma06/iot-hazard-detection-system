@@ -32,12 +32,12 @@ async function receiveData(req, res, next) {
       offlineAlerted[room] = false;
       offlineAlertSent[room] = false;
       roomStatus[room] = "online";
-      console.log(`✅ Room ${room} BACK ONLINE!`);
+      // console.log(`✅ Room ${room} BACK ONLINE!`);
     }
 
-    console.log(
-      `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame}`,
-    );
+    // console.log(
+    //   `[DATA] Room ${room} | Temp:${saved.temp}°C Hum:${saved.humidity}% MQ2:${saved.mq2} MQ4:${saved.mq4} Flame:${saved.flame}`,
+    // );
 
     // ── Current LEVEL state ──────────────────────────────
     const current = {
@@ -72,7 +72,7 @@ async function receiveData(req, res, next) {
 
         // SEND INTERACTIVE EMERGENCY ALERT
         if (current.mq2 === "danger") {
-          console.log(`🚨 Room ${room} MQ2 DANGER - Sending to helpers!`);
+          // console.log(`🚨 Room ${room} MQ2 DANGER - Sending to helpers!`);
           await emergencyService.startEmergency(room, saved);
         }
       }
@@ -81,7 +81,7 @@ async function receiveData(req, res, next) {
     // ── MQ4 — send on ANY level change ───────────────────
     if (current.mq4 !== prev.mq4) {
       if (current.mq4 !== "safe") {
-        console.log(`⚠️ Room ${room} MQ4 Alert: ${current.mq4}`);
+        // console.log(`⚠️ Room ${room} MQ4 Alert: ${current.mq4}`);
         await notificationService.sendAlert(
           room,
           "mq4",
@@ -91,7 +91,7 @@ async function receiveData(req, res, next) {
 
         // SEND INTERACTIVE EMERGENCY ALERT
         if (current.mq4 === "danger") {
-          console.log(`🚨 Room ${room} MQ4 DANGER - Sending to helpers!`);
+          // console.log(`🚨 Room ${room} MQ4 DANGER - Sending to helpers!`);
           await emergencyService.startEmergency(room, saved);
         }
       }
@@ -100,7 +100,7 @@ async function receiveData(req, res, next) {
     // ── TEMP — send on ANY level change ──────────────────
     if (current.temp !== prev.temp) {
       if (current.temp !== "safe") {
-        console.log(`⚠️ Room ${room} Temperature Alert: ${current.temp}`);
+        // console.log(`⚠️ Room ${room} Temperature Alert: ${current.temp}`);
         await notificationService.sendAlert(
           room,
           "temp",
@@ -110,7 +110,7 @@ async function receiveData(req, res, next) {
 
         // SEND INTERACTIVE EMERGENCY ALERT FOR DANGEROUS TEMP
         if (current.temp === "danger") {
-          console.log(`🚨 Room ${room} TEMP DANGER - Sending to helpers!`);
+          // console.log(`🚨 Room ${room} TEMP DANGER - Sending to helpers!`);
           await emergencyService.startEmergency(room, saved);
         }
       }
@@ -118,7 +118,7 @@ async function receiveData(req, res, next) {
 
     // ── FLAME — send when detected ───────────────────────
     if (current.flame === "danger" && prev.flame !== "danger") {
-      console.log(`🚨🔥 Room ${room} FLAME DETECTED - CRITICAL!`);
+      // console.log(`🚨🔥 Room ${room} FLAME DETECTED - CRITICAL!`);
       await notificationService.sendAlert(
         room,
         "flame",
@@ -143,7 +143,7 @@ async function receiveData(req, res, next) {
       current.flame === "safe";
 
     if (wasAnyAlert && nowAllSafe) {
-      console.log(`✅ Room ${room} ALL CLEAR - Sensors back to normal!`);
+      // console.log(`✅ Room ${room} ALL CLEAR - Sensors back to normal!`);
       await notificationService.sendAllClear(room);
     }
 
@@ -183,10 +183,10 @@ setInterval(() => {
       if (timeSinceLastUpdate >= OFFLINE_TIMEOUT) {
         // Send alert ONLY ONCE, at exactly 20 seconds
         if (!offlineAlertSent[roomId]) {
-          const seconds = Math.round(timeSinceLastUpdate / 1000);
-          console.log(
-            `🚨 CRITICAL: Room ${roomId} OFFLINE! (Exactly ${seconds}s - sending alert NOW!)`,
-          );
+          // const seconds = Math.round(timeSinceLastUpdate / 1000);
+          // console.log(
+          //   `🚨 CRITICAL: Room ${roomId} OFFLINE! (Exactly ${seconds}s - sending alert NOW!)`,
+          // );
 
           // ← SEND ALERT TO ALL SUBSCRIBERS
           notificationService.sendOfflineAlert(roomId);
@@ -201,7 +201,7 @@ setInterval(() => {
       else {
         // If it was offline and now back online
         if (offlineAlerted[roomId]) {
-          console.log(`✅ Room ${roomId} RECOVERED - Back online!`);
+          // console.log(`✅ Room ${roomId} RECOVERED - Back online!`);
           notificationService.sendAllClear(roomId);
           offlineAlerted[roomId] = false;
           offlineAlertSent[roomId] = false;
@@ -232,7 +232,7 @@ setInterval(() => {
 
     statusSummary.push(`${emoji} Room ${i}${timeInfo}`);
   }
-  console.log(`[STATUS] ${statusSummary.join(" | ")}`);
+  // console.log(`[STATUS] ${statusSummary.join(" | ")}`);
 }, 1000); // Check EVERY 1 SECOND for precise timing at 20s
 
 module.exports = { receiveData };

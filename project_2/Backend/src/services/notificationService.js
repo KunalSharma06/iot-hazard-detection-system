@@ -24,10 +24,10 @@ async function _sendOne(chatId, text) {
     });
     const data = await res.json();
     if (!data.ok) {
-      console.error(`[TELEGRAM] Failed for ${chatId}: ${data.description}`);
+      // console.error(`[TELEGRAM] Failed for ${chatId}: ${data.description}`);
     }
   } catch (err) {
-    console.error(`[TELEGRAM] Network error for ${chatId}:`, err.message);
+    // console.error(`[TELEGRAM] Network error for ${chatId}:`, err.message);
   }
 }
 
@@ -36,13 +36,13 @@ async function _broadcast(text) {
   if (!config.telegram.enabled) return;
 
   const all = subscriberStore.getAll();
-  console.log("Subscribers:", all);
+  // console.log("Subscribers:", all);
   if (all.length === 0) {
-    console.log("[NOTIFY] No subscribers — skipping");
+    // console.log("[NOTIFY] No subscribers — skipping");
     return;
   }
 
-  console.log(`[NOTIFY] Broadcasting to ${all.length} subscriber(s)`);
+  // // console.log(`[NOTIFY] Broadcasting to ${all.length} subscriber(s)`);
   await Promise.all(all.map((chatId) => _sendOne(chatId, text)));
 }
 

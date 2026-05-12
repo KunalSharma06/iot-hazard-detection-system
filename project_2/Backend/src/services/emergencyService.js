@@ -16,11 +16,11 @@ async function startEmergency(roomId, sensorData = {}) {
     });
 
     if (emergencyId) {
-      console.log("✅ Emergency started with ID:", emergencyId);
+      // console.log("✅ Emergency started with ID:", emergencyId);
       return emergencyId;
     }
   } catch (err) {
-    console.error("❌ Error starting emergency:", err);
+    // console.error("❌ Error starting emergency:", err);
   }
 }
 
