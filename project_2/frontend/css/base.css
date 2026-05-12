@@ -611,3 +611,115 @@ body {
     height: 50px;
   }
 }
+
+
+/* ========== ENHANCED ALERT HISTORY ========== */
+.alert-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.alert-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.export-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.export-btn:hover {
+  background: var(--safe);
+  border-color: var(--safe);
+  color: white;
+}
+
+.alert-history-stats {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-item {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-item.danger {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.stat-item.warning {
+  border-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+}
+
+.stat-item.danger .stat-value {
+  color: var(--danger);
+}
+
+.stat-item.warning .stat-value {
+  color: var(--warn);
+}
+
+.delete-alert-btn {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.alert-history-item:hover .delete-alert-btn {
+  opacity: 0.6;
+}
+
+.delete-alert-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.2);
+}
+
+.alert-history-timestamp {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-family: var(--font-display);
+}

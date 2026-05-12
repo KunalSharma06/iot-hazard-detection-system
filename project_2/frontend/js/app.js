@@ -333,13 +333,45 @@
   };
 
   // ========== ALERT HISTORY SYSTEM ==========
+  // ========== ALERT HISTORY SYSTEM (WITH PERSISTENCE) ==========
   const AlertHistory = {
     alerts: [],
     maxAlerts: 50,
     panelOpen: false,
+    storageKey: "iot_alert_history",
 
     init() {
+      this.loadFromStorage();
       this.createPanel();
+      this.updatePanel();
+      this.updateBadge();
+    },
+
+    // Load alerts from localStorage
+    loadFromStorage() {
+      try {
+        const stored = localStorage.getItem(this.storageKey);
+        if (stored) {
+          this.alerts = JSON.parse(stored);
+          // Remove old alerts (older than 24 hours)
+          const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          this.alerts = this.alerts.filter(
+            (alert) => alert.timestamp > oneDayAgo,
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load alert history:", error);
+        this.alerts = [];
+      }
+    },
+
+    // Save alerts to localStorage
+    saveToStorage() {
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.alerts));
+      } catch (error) {
+        console.error("Failed to save alert history:", error);
+      }
     },
 
     createPanel() {
@@ -347,15 +379,32 @@
       panel.id = "alert-history-panel";
       panel.className = "alert-history-panel";
       panel.innerHTML = `
-        <div class="alert-history-header">
-          <h3>Alert History</h3>
+      <div class="alert-history-header">
+        <h3>Alert History</h3>
+        <div class="alert-header-actions">
+          <button id="export-history" class="export-btn" title="Export to CSV">📥</button>
           <button id="clear-history" class="clear-btn">Clear</button>
           <button id="close-history" class="close-btn">✕</button>
         </div>
-        <div class="alert-history-list" id="alert-history-list">
-          <div class="alert-history-empty">No alerts yet</div>
+      </div>
+      <div class="alert-history-stats" id="alert-stats">
+        <div class="stat-item">
+          <span class="stat-label">Total</span>
+          <span class="stat-value" id="stat-total">0</span>
         </div>
-      `;
+        <div class="stat-item danger">
+          <span class="stat-label">Danger</span>
+          <span class="stat-value" id="stat-danger">0</span>
+        </div>
+        <div class="stat-item warning">
+          <span class="stat-label">Warning</span>
+          <span class="stat-value" id="stat-warning">0</span>
+        </div>
+      </div>
+      <div class="alert-history-list" id="alert-history-list">
+        <div class="alert-history-empty">No alerts yet</div>
+      </div>
+    `;
       document.body.appendChild(panel);
 
       // Create toggle button
@@ -363,9 +412,9 @@
       toggleBtn.id = "toggle-history";
       toggleBtn.className = "toggle-history-btn";
       toggleBtn.innerHTML = `
-        <span class="history-icon">📋</span>
-        <span class="alert-count">0</span>
-      `;
+      <span class="history-icon">📋</span>
+      <span class="alert-count">0</span>
+    `;
       document.body.appendChild(toggleBtn);
 
       // Event listeners
@@ -376,6 +425,9 @@
       document
         .getElementById("clear-history")
         .addEventListener("click", () => this.clearHistory());
+      document
+        .getElementById("export-history")
+        .addEventListener("click", () => this.exportToCSV());
     },
 
     togglePanel() {
@@ -385,12 +437,26 @@
     },
 
     addAlert(alert) {
+      // Check if this exact alert already exists in last 5 seconds (prevent duplicates)
+      const isDuplicate = this.alerts.some(
+        (existingAlert) =>
+          existingAlert.room === alert.room &&
+          existingAlert.type === alert.type &&
+          existingAlert.level === alert.level &&
+          alert.timestamp - existingAlert.timestamp < 5000,
+      );
+
+      if (isDuplicate) return;
+
       this.alerts.unshift(alert);
       if (this.alerts.length > this.maxAlerts) {
         this.alerts = this.alerts.slice(0, this.maxAlerts);
       }
+
+      this.saveToStorage(); // Save to localStorage
       this.updatePanel();
       this.updateBadge();
+      this.updateStats();
     },
 
     updatePanel() {
@@ -401,21 +467,46 @@
       }
 
       list.innerHTML = this.alerts
-        .map((alert) => {
+        .map((alert, index) => {
           const time = new Date(alert.timestamp);
+          const timeAgo = this.getTimeAgo(alert.timestamp);
           return `
-          <div class="alert-history-item ${alert.level}">
-            <div class="alert-history-item-header">
-              <span class="alert-history-icon">${alert.level === "danger" ? "🚨" : "⚠️"}</span>
-              <span class="alert-history-type">${this.getAlertTypeName(alert.type)}</span>
-              <span class="alert-history-room">Room ${alert.room}</span>
-              <span class="alert-history-time">${time.toLocaleTimeString()}</span>
-            </div>
-            <div class="alert-history-message">${alert.message}</div>
+        <div class="alert-history-item ${alert.level}" data-index="${index}">
+          <div class="alert-history-item-header">
+            <span class="alert-history-icon">${alert.level === "danger" ? "🚨" : "⚠️"}</span>
+            <span class="alert-history-type">${this.getAlertTypeName(alert.type)}</span>
+            <span class="alert-history-room">Room ${alert.room}</span>
+            <span class="alert-history-time" title="${time.toLocaleString()}">${timeAgo}</span>
+            <button class="delete-alert-btn" data-index="${index}" title="Delete">🗑️</button>
           </div>
-        `;
+          <div class="alert-history-message">${this.truncateMessage(alert.message)}</div>
+          <div class="alert-history-timestamp">${time.toLocaleDateString()} ${time.toLocaleTimeString()}</div>
+        </div>
+      `;
         })
         .join("");
+
+      // Add delete button listeners
+      list.querySelectorAll(".delete-alert-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const index = parseInt(btn.dataset.index);
+          this.deleteAlert(index);
+        });
+      });
+    },
+
+    getTimeAgo(timestamp) {
+      const seconds = Math.floor((Date.now() - timestamp) / 1000);
+
+      if (seconds < 60) return "Just now";
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    },
+
+    truncateMessage(message) {
+      return message.length > 150 ? message.substring(0, 150) + "..." : message;
     },
 
     getAlertTypeName(type) {
@@ -431,16 +522,75 @@
 
     updateBadge() {
       const badge = document.querySelector(".alert-count");
-      badge.textContent = this.alerts.length;
-      badge.style.display = this.alerts.length > 0 ? "flex" : "none";
+      if (badge) {
+        badge.textContent = this.alerts.length;
+        badge.style.display = this.alerts.length > 0 ? "flex" : "none";
+      }
+    },
+
+    updateStats() {
+      const dangerCount = this.alerts.filter(
+        (a) => a.level === "danger",
+      ).length;
+      const warningCount = this.alerts.filter(
+        (a) => a.level === "warning",
+      ).length;
+
+      document.getElementById("stat-total").textContent = this.alerts.length;
+      document.getElementById("stat-danger").textContent = dangerCount;
+      document.getElementById("stat-warning").textContent = warningCount;
+    },
+
+    deleteAlert(index) {
+      this.alerts.splice(index, 1);
+      this.saveToStorage();
+      this.updatePanel();
+      this.updateBadge();
+      this.updateStats();
     },
 
     clearHistory() {
-      if (confirm("Clear all alert history?")) {
+      if (confirm("Clear all alert history? This cannot be undone.")) {
         this.alerts = [];
+        this.saveToStorage();
         this.updatePanel();
         this.updateBadge();
+        this.updateStats();
       }
+    },
+
+    exportToCSV() {
+      if (this.alerts.length === 0) {
+        alert("No alerts to export");
+        return;
+      }
+
+      const csvContent = [
+        ["Timestamp", "Room", "Type", "Level", "Message"].join(","),
+        ...this.alerts.map((alert) => {
+          const time = new Date(alert.timestamp).toLocaleString();
+          const message = alert.message.replace(/,/g, ";").replace(/"/g, '""');
+          return [
+            `"${time}"`,
+            alert.room,
+            this.getAlertTypeName(alert.type),
+            alert.level,
+            `"${message}"`,
+          ].join(",");
+        }),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      const filename = `iot-alerts-${new Date().toISOString().split("T")[0]}.csv`;
+
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     },
   };
 
