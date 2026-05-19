@@ -196,66 +196,54 @@
         level = "danger";
         message = `CRITICAL ALERT! FIRE DETECTED IN ROOM ${room.room}! FLAME SENSOR ACTIVATED! EVACUATE IMMEDIATELY! REPEAT, FIRE IN ROOM ${room.room}!`;
         this.playAlarmSound("danger");
+        this.createVisualAlert("FIRE DETECTED", `Room ${room.room}`, "danger");
+      } else if (alertType === "mq2") {
+        level = "danger";
+        const value = room.mq2;
+        message = `DANGER! HIGH LPG OR SMOKE DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! VENTILATE AREA IMMEDIATELY! CHECK FOR GAS LEAKS!`;
+        this.playAlarmSound("danger");
         this.createVisualAlert(
-          "🔥 FIRE DETECTED",
-          `Room ${room.room}`,
+          "GAS/SMOKE ALERT",
+          `Room ${room.room} - ${value} ADC`,
           "danger",
         );
-      } else if (alertType === "mq2") {
-        level = room.levels?.mq2 === "danger" ? "danger" : "warning";
-        const value = room.mq2;
-        if (level === "danger") {
-          message = `DANGER! HIGH LPG OR SMOKE DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! VENTILATE AREA IMMEDIATELY! CHECK FOR GAS LEAKS!`;
-        } else {
-          message = `WARNING! ELEVATED LPG OR SMOKE IN ROOM ${room.room}. CURRENT READING: ${value} ADC UNITS. MONITOR CLOSELY.`;
-        }
-        this.playAlarmSound(level);
-        this.createVisualAlert(
-          level === "danger" ? "🚨 GAS/SMOKE DANGER" : "⚠️ GAS/SMOKE WARNING",
-          `Room ${room.room} - ${value} ADC`,
-          level,
-        );
       } else if (alertType === "mq4") {
-        level = room.levels?.mq4 === "danger" ? "danger" : "warning";
+        level = "danger";
         const value = room.mq4;
-        if (level === "danger") {
-          message = `DANGER! HIGH METHANE OR CNG DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! POTENTIAL GAS LEAK! EVACUATE AND VENTILATE!`;
-        } else {
-          message = `WARNING! ELEVATED METHANE OR CNG IN ROOM ${room.room}. CURRENT READING: ${value} ADC UNITS. MONITOR CLOSELY.`;
-        }
-        this.playAlarmSound(level);
+        message = `DANGER! HIGH METHANE OR CNG DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! POTENTIAL GAS LEAK! EVACUATE AND VENTILATE!`;
+        this.playAlarmSound("danger");
         this.createVisualAlert(
-          level === "danger" ? "🚨 METHANE DANGER" : "⚠️ METHANE WARNING",
+          "METHANE ALERT",
           `Room ${room.room} - ${value} ADC`,
-          level,
+          "danger",
         );
       } else if (alertType === "temp") {
-        level = room.levels?.temp === "danger" ? "danger" : "warning";
-        const value = room.temp?.toFixed(1) || "N/A";
+        level = room.levels.temp === "danger" ? "danger" : "warning";
+        const value = room.temp.toFixed(1);
         if (level === "danger") {
           message = `CRITICAL TEMPERATURE ALERT! ROOM ${room.room} TEMPERATURE IS ${value} DEGREES CELSIUS! THIS IS DANGEROUSLY HIGH! RISK OF HEAT DAMAGE OR FIRE!`;
+          this.playAlarmSound("danger");
+          this.createVisualAlert(
+            "HIGH TEMPERATURE",
+            `Room ${room.room} - ${value}°C`,
+            "danger",
+          );
         } else {
           message = `WARNING! ELEVATED TEMPERATURE IN ROOM ${room.room}. CURRENT READING: ${value} DEGREES CELSIUS. MONITOR CLOSELY.`;
+          this.playAlarmSound("warning");
+          this.createVisualAlert(
+            "Temperature Warning",
+            `Room ${room.room} - ${value}°C`,
+            "warning",
+          );
         }
-        this.playAlarmSound(level);
-        this.createVisualAlert(
-          level === "danger"
-            ? "🌡️ TEMPERATURE DANGER"
-            : "⚠️ TEMPERATURE WARNING",
-          `Room ${room.room} - ${value}°C`,
-          level,
-        );
       } else if (alertType === "humidity") {
-        level = room.levels?.humidity === "danger" ? "danger" : "warning";
-        const value = room.humidity?.toFixed(0) || "N/A";
-        if (level === "danger") {
-          message = `DANGER! EXTREME HUMIDITY IN ROOM ${room.room}. CURRENT LEVEL: ${value} PERCENT. RISK OF MOLD AND DAMAGE!`;
-        } else {
-          message = `WARNING! HIGH HUMIDITY IN ROOM ${room.room}. CURRENT LEVEL: ${value} PERCENT. CHECK VENTILATION.`;
-        }
+        level = room.levels.humidity === "danger" ? "danger" : "warning";
+        const value = room.humidity.toFixed(0);
+        message = `${level === "danger" ? "DANGER" : "WARNING"}! ${level === "danger" ? "EXTREME" : "HIGH"} HUMIDITY IN ROOM ${room.room}. CURRENT LEVEL: ${value} PERCENT. ${level === "danger" ? "RISK OF MOLD AND DAMAGE!" : "CHECK VENTILATION."}`;
         this.playAlarmSound(level);
         this.createVisualAlert(
-          level === "danger" ? "💧 HUMIDITY DANGER" : "⚠️ HUMIDITY WARNING",
+          "Humidity Alert",
           `Room ${room.room} - ${value}%`,
           level,
         );
@@ -315,28 +303,33 @@
     checkRoomAlerts(room) {
       if (!room || !room.online) return;
 
-      // Check fire - FLAME DETECTED
-      if (room.flame === 1) {
+      // Check fire
+      if (room.flame === 1 && room.alerts?.fire) {
         this.announceAlert(room, "fire");
       }
 
-      // Check MQ2 - Gas/Smoke levels
-      if (room.levels?.mq2 && room.levels.mq2 !== "safe") {
+      // Check gas sensors
+      if (room.levels?.mq2 === "danger" && room.alerts?.mq2) {
         this.announceAlert(room, "mq2");
       }
-
-      // Check MQ4 - Methane levels
-      if (room.levels?.mq4 && room.levels.mq4 !== "safe") {
+      if (room.levels?.mq4 === "danger" && room.alerts?.mq4) {
         this.announceAlert(room, "mq4");
       }
 
       // Check temperature
-      if (room.levels?.temp && room.levels.temp !== "safe") {
+      if (
+        (room.levels?.temp === "danger" || room.levels?.temp === "warning") &&
+        room.alerts?.temp
+      ) {
         this.announceAlert(room, "temp");
       }
 
       // Check humidity
-      if (room.levels?.humidity && room.levels.humidity !== "safe") {
+      if (
+        (room.levels?.humidity === "danger" ||
+          room.levels?.humidity === "warning") &&
+        room.alerts?.humidity
+      ) {
         this.announceAlert(room, "humidity");
       }
     },
@@ -354,7 +347,7 @@
       this.createPanel();
       this.updatePanel();
       this.updateBadge();
-      this.updateStats();
+      this.updateStats(); // FIX #2: Add this to show correct alert count
     },
 
     // Load alerts from localStorage
@@ -365,10 +358,12 @@
           this.alerts = JSON.parse(stored);
           // Remove old alerts (older than 24 hours)
           const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-          this.alerts = this.alerts.filter((a) => a.timestamp > oneDayAgo);
+          this.alerts = this.alerts.filter(
+            (alert) => alert.timestamp > oneDayAgo,
+          );
         }
-      } catch (e) {
-        console.error("Failed to load alert history:", e);
+      } catch (error) {
+        console.error("Failed to load alert history:", error);
         this.alerts = [];
       }
     },
@@ -377,69 +372,52 @@
     saveToStorage() {
       try {
         localStorage.setItem(this.storageKey, JSON.stringify(this.alerts));
-      } catch (e) {
-        console.error("Failed to save alert history:", e);
+      } catch (error) {
+        console.error("Failed to save alert history:", error);
       }
-    },
-
-    // Add new alert
-    addAlert(alert) {
-      this.alerts.unshift(alert);
-
-      // Keep only the latest maxAlerts
-      if (this.alerts.length > this.maxAlerts) {
-        this.alerts = this.alerts.slice(0, this.maxAlerts);
-      }
-
-      this.saveToStorage();
-      this.updatePanel();
-      this.updateBadge();
-      this.updateStats();
     },
 
     createPanel() {
       const panel = document.createElement("div");
-      panel.className = "alert-history-panel";
       panel.id = "alert-history-panel";
-
+      panel.className = "alert-history-panel";
       panel.innerHTML = `
-        <div class="alert-history-header">
-          <h3>Alert History</h3>
-          <div class="alert-history-stats">
-            <span class="stat-item">
-              <span class="stat-label">Total:</span>
-              <span class="stat-value" id="stat-total">0</span>
-            </span>
-            <span class="stat-item danger">
-              <span class="stat-label">Danger:</span>
-              <span class="stat-value" id="stat-danger">0</span>
-            </span>
-            <span class="stat-item warning">
-              <span class="stat-label">Warning:</span>
-              <span class="stat-value" id="stat-warning">0</span>
-            </span>
-          </div>
-          <div class="alert-history-actions">
-            <button id="export-alerts" class="alert-action-btn" title="Export to CSV">📥</button>
-            <button id="clear-alerts" class="alert-action-btn" title="Clear All">🗑️</button>
-            <button id="close-history" class="alert-action-btn close-btn">✕</button>
-          </div>
+      <div class="alert-history-header">
+        <h3>Alert History</h3>
+        <div class="alert-header-actions">
+          <button id="export-history" class="export-btn" title="Export to CSV">📥</button>
+          <button id="clear-history" class="clear-btn">Clear</button>
+          <button id="close-history" class="close-btn">✕</button>
         </div>
-        <div class="alert-history-list" id="alert-history-list">
-          <div class="no-alerts">No alerts recorded</div>
+      </div>
+      <div class="alert-history-stats" id="alert-stats">
+        <div class="stat-item">
+          <span class="stat-label">Total</span>
+          <span class="stat-value" id="stat-total">0</span>
         </div>
-      `;
-
+        <div class="stat-item danger">
+          <span class="stat-label">Danger</span>
+          <span class="stat-value" id="stat-danger">0</span>
+        </div>
+        <div class="stat-item warning">
+          <span class="stat-label">Warning</span>
+          <span class="stat-value" id="stat-warning">0</span>
+        </div>
+      </div>
+      <div class="alert-history-list" id="alert-history-list">
+        <div class="alert-history-empty">No alerts yet</div>
+      </div>
+    `;
       document.body.appendChild(panel);
 
-      // Toggle button
+      // Create toggle button
       const toggleBtn = document.createElement("button");
-      toggleBtn.className = "alert-history-toggle";
+      toggleBtn.id = "toggle-history";
+      toggleBtn.className = "toggle-history-btn";
       toggleBtn.innerHTML = `
-        <span class="toggle-icon">📋</span>
-        <span class="toggle-label">Alerts</span>
-        <span class="alert-count">0</span>
-      `;
+      <span class="history-icon">📋</span>
+      <span class="alert-count">0</span>
+    `;
       document.body.appendChild(toggleBtn);
 
       // Event listeners
@@ -448,28 +426,46 @@
         .getElementById("close-history")
         .addEventListener("click", () => this.togglePanel());
       document
-        .getElementById("clear-alerts")
+        .getElementById("clear-history")
         .addEventListener("click", () => this.clearHistory());
       document
-        .getElementById("export-alerts")
+        .getElementById("export-history")
         .addEventListener("click", () => this.exportToCSV());
     },
 
     togglePanel() {
-      const panel = document.getElementById("alert-history-panel");
       this.panelOpen = !this.panelOpen;
-      if (this.panelOpen) {
-        panel.classList.add("open");
-      } else {
-        panel.classList.remove("open");
+      const panel = document.getElementById("alert-history-panel");
+      panel.classList.toggle("open", this.panelOpen);
+    },
+
+    addAlert(alert) {
+      // Check if this exact alert already exists in last 5 seconds (prevent duplicates)
+      const isDuplicate = this.alerts.some(
+        (existingAlert) =>
+          existingAlert.room === alert.room &&
+          existingAlert.type === alert.type &&
+          existingAlert.level === alert.level &&
+          alert.timestamp - existingAlert.timestamp < 5000,
+      );
+
+      if (isDuplicate) return;
+
+      this.alerts.unshift(alert);
+      if (this.alerts.length > this.maxAlerts) {
+        this.alerts = this.alerts.slice(0, this.maxAlerts);
       }
+
+      this.saveToStorage(); // Save to localStorage
+      this.updatePanel();
+      this.updateBadge();
+      this.updateStats();
     },
 
     updatePanel() {
       const list = document.getElementById("alert-history-list");
-
       if (this.alerts.length === 0) {
-        list.innerHTML = '<div class="no-alerts">No alerts recorded</div>';
+        list.innerHTML = '<div class="alert-history-empty">No alerts yet</div>';
         return;
       }
 
@@ -478,8 +474,8 @@
           const time = new Date(alert.timestamp);
           const timeAgo = this.getTimeAgo(alert.timestamp);
           return `
-        <div class="alert-history-item ${alert.level}">
-          <div class="alert-history-header-row">
+        <div class="alert-history-item ${alert.level}" data-index="${index}">
+          <div class="alert-history-item-header">
             <span class="alert-history-icon">${alert.level === "danger" ? "🚨" : "⚠️"}</span>
             <span class="alert-history-type">${this.getAlertTypeName(alert.type)}</span>
             <span class="alert-history-room">Room ${alert.room}</span>
@@ -604,7 +600,7 @@
   // ── Navigation ───────────────────────────────── //
   function showRoomsPage() {
     currentRoom = null;
-    localStorage.removeItem("selectedRoom");
+    localStorage.removeItem("selectedRoom"); // FIX #1: Clear saved room
     DetailPage.reset();
     document.getElementById("rooms-page").classList.remove("hidden");
     document.getElementById("detail-page").classList.add("hidden");
@@ -612,7 +608,7 @@
 
   function showDetailPage(roomId) {
     currentRoom = roomId;
-    localStorage.setItem("selectedRoom", roomId);
+    localStorage.setItem("selectedRoom", roomId); // FIX #1: Save room
     document.getElementById("rooms-page").classList.add("hidden");
     document.getElementById("detail-page").classList.remove("hidden");
   }
@@ -712,7 +708,7 @@
     poll();
     pollInterval = setInterval(poll, 2000);
 
-    // Restore room if it was saved
+    // FIX #1: Restore room if it was saved
     if (currentRoom !== null) {
       showDetailPage(currentRoom);
     }
