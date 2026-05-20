@@ -182,8 +182,9 @@
       // Check cooldown - STRICT cooldown to prevent spam
       if (this.lastAlerts.has(alertKey)) {
         const lastTime = this.lastAlerts.get(alertKey);
+
         if (now - lastTime < this.alertCooldown) {
-          return; // Don't spam alerts
+          return;
         }
       }
 
@@ -192,28 +193,53 @@
       let message = "";
       let level = "";
 
-      // ===== FIRE ALERT (IMMEDIATE - NO DELAY) =====
+      // ===== FIRE ALERT (FIXED POPUP + HISTORY) =====
       if (alertType === "fire") {
         level = "danger";
+
         message = `CRITICAL ALERT! FIRE DETECTED IN ROOM ${room.room}! FLAME SENSOR ACTIVATED! EVACUATE IMMEDIATELY!`;
-        // IMMEDIATE EXECUTION - No delays
+
+        // Play sound
         this.playAlarmSound("danger");
+
+        // Voice
         this.speak(message, 1.2, 1.1, 1.0);
+
+        // Popup
         this.createVisualAlert(
           "🚨 FIRE DETECTED",
-          `Room ${room.room}\nFLAME SENSOR TRIGGERED\nLevel: DANGER\nIMMEDIATE EVACUATION REQUIRED`,
+          `Room ${room.room}
+FLAME SENSOR TRIGGERED
+Level: DANGER
+IMMEDIATE EVACUATION REQUIRED`,
           "danger",
         );
+
+        // Add history immediately
+        AlertHistory.addAlert({
+          room: room.room,
+          type: "fire",
+          level: "danger",
+          message: message,
+          timestamp: now,
+        });
+
+        return;
       }
+
       // ===== MQ2 ALERT (LPG/SMOKE - DANGER + WARNING) =====
       else if (alertType === "mq2") {
         const value = room.mq2;
 
         if (room.levels?.mq2 === "danger") {
           level = "danger";
+
           message = `DANGER! HIGH LPG OR SMOKE DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! VENTILATE AREA IMMEDIATELY! CHECK FOR GAS LEAKS!`;
+
           this.playAlarmSound("danger");
+
           this.speak(message, 1.2, 1.1, 1.0);
+
           this.createVisualAlert(
             "🚨 GAS/SMOKE DANGER",
             `Room ${room.room}\nValue: ${value} ADC\nLevel: DANGER`,
@@ -221,9 +247,13 @@
           );
         } else if (room.levels?.mq2 === "warning") {
           level = "warning";
+
           message = `WARNING! ELEVATED LPG OR SMOKE DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS. CHECK VENTILATION AND MONITOR SITUATION.`;
+
           this.playAlarmSound("warning");
+
           this.speak(message, 1.0, 1.0, 1.0);
+
           this.createVisualAlert(
             "⚠️ GAS/SMOKE WARNING",
             `Room ${room.room}\nValue: ${value} ADC\nLevel: WARNING`,
@@ -231,15 +261,20 @@
           );
         }
       }
+
       // ===== MQ4 ALERT (METHANE - DANGER + WARNING) =====
       else if (alertType === "mq4") {
         const value = room.mq4;
 
         if (room.levels?.mq4 === "danger") {
           level = "danger";
+
           message = `DANGER! HIGH METHANE OR CNG DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS! POTENTIAL GAS LEAK! EVACUATE AND VENTILATE!`;
+
           this.playAlarmSound("danger");
+
           this.speak(message, 1.2, 1.1, 1.0);
+
           this.createVisualAlert(
             "🚨 METHANE DANGER",
             `Room ${room.room}\nValue: ${value} ADC\nLevel: DANGER`,
@@ -247,9 +282,13 @@
           );
         } else if (room.levels?.mq4 === "warning") {
           level = "warning";
+
           message = `WARNING! ELEVATED METHANE OR CNG DETECTED IN ROOM ${room.room}! CURRENT READING: ${value} ADC UNITS. CHECK FOR LEAKS AND IMPROVE VENTILATION.`;
+
           this.playAlarmSound("warning");
+
           this.speak(message, 1.0, 1.0, 1.0);
+
           this.createVisualAlert(
             "⚠️ METHANE WARNING",
             `Room ${room.room}\nValue: ${value} ADC\nLevel: WARNING`,
@@ -257,24 +296,32 @@
           );
         }
       }
-      // ===== TEMPERATURE ALERT (DANGER + WARNING) =====
+
+      // ===== TEMPERATURE ALERT =====
       else if (alertType === "temp") {
         level = room.levels?.temp === "danger" ? "danger" : "warning";
+
         const value = room.temp.toFixed(1);
 
         if (level === "danger") {
-          message = `CRITICAL TEMPERATURE ALERT! ROOM ${room.room} TEMPERATURE IS ${value} DEGREES CELSIUS! THIS IS DANGEROUSLY HIGH! RISK OF HEAT DAMAGE OR FIRE! EVACUATE AND VENTILATE IMMEDIATELY!`;
+          message = `CRITICAL TEMPERATURE ALERT! ROOM ${room.room} TEMPERATURE IS ${value} DEGREES CELSIUS! THIS IS DANGEROUSLY HIGH!`;
+
           this.playAlarmSound("danger");
+
           this.speak(message, 1.2, 1.1, 1.0);
+
           this.createVisualAlert(
             "🚨 DANGEROUS TEMPERATURE",
-            `Room ${room.room} - ${value}°C\nLevel: DANGER - IMMEDIATE ACTION REQUIRED`,
+            `Room ${room.room} - ${value}°C\nLevel: DANGER`,
             "danger",
           );
-        } else if (level === "warning") {
-          message = `WARNING! ELEVATED TEMPERATURE IN ROOM ${room.room}. CURRENT READING: ${value} DEGREES CELSIUS. TEMPERATURE IS RISING. MONITOR CLOSELY AND IMPROVE VENTILATION.`;
+        } else {
+          message = `WARNING! ELEVATED TEMPERATURE IN ROOM ${room.room}. CURRENT READING: ${value} DEGREES CELSIUS.`;
+
           this.playAlarmSound("warning");
+
           this.speak(message, 1.0, 1.0, 1.0);
+
           this.createVisualAlert(
             "⚠️ Temperature Warning",
             `Room ${room.room} - ${value}°C\nLevel: WARNING`,
@@ -282,24 +329,32 @@
           );
         }
       }
-      // ===== HUMIDITY ALERT (DANGER + WARNING) =====
+
+      // ===== HUMIDITY ALERT =====
       else if (alertType === "humidity") {
         level = room.levels?.humidity === "danger" ? "danger" : "warning";
+
         const value = room.humidity.toFixed(0);
 
         if (level === "danger") {
-          message = `DANGER! EXTREME HUMIDITY DETECTED IN ROOM ${room.room}! CURRENT LEVEL: ${value} PERCENT! RISK OF MOLD AND STRUCTURAL DAMAGE! IMPROVE VENTILATION IMMEDIATELY!`;
+          message = `DANGER! EXTREME HUMIDITY DETECTED IN ROOM ${room.room}! CURRENT LEVEL: ${value} PERCENT!`;
+
           this.playAlarmSound("danger");
+
           this.speak(message, 1.2, 1.1, 1.0);
+
           this.createVisualAlert(
             "🚨 EXTREME HUMIDITY",
             `Room ${room.room} - ${value}%\nLevel: DANGER`,
             "danger",
           );
-        } else if (level === "warning") {
-          message = `WARNING! HIGH HUMIDITY DETECTED IN ROOM ${room.room}. CURRENT LEVEL: ${value} PERCENT. CHECK VENTILATION AND MONITOR SITUATION.`;
+        } else {
+          message = `WARNING! HIGH HUMIDITY DETECTED IN ROOM ${room.room}. CURRENT LEVEL: ${value} PERCENT.`;
+
           this.playAlarmSound("warning");
+
           this.speak(message, 1.0, 1.0, 1.0);
+
           this.createVisualAlert(
             "⚠️ Humidity Warning",
             `Room ${room.room} - ${value}%\nLevel: WARNING`,
@@ -308,7 +363,7 @@
         }
       }
 
-      // Add to alert history for ALL alerts with message
+      // Add to history
       if (message) {
         AlertHistory.addAlert({
           room: room.room,
@@ -359,25 +414,27 @@
     checkRoomAlerts(room) {
       if (!room || !room.online) return;
 
-      // ===== CHECK FIRE - DIRECT CHECK (NO ALERTS FLAG NEEDED) =====
-      if (room.flame === 1) {
+      // ===== FIRE CHECK FIXED =====
+      if (room.flame === 1 || room.flame === "1" || room.flame === true) {
         this.announceAlert(room, "fire");
       }
 
-      // ===== CHECK GAS SENSORS - WITH ALERT FLAGS =====
+      // ===== MQ2 =====
       if (room.levels?.mq2 && room.alerts?.mq2) {
         this.announceAlert(room, "mq2");
       }
+
+      // ===== MQ4 =====
       if (room.levels?.mq4 && room.alerts?.mq4) {
         this.announceAlert(room, "mq4");
       }
 
-      // ===== CHECK TEMPERATURE - WITH ALERT FLAG =====
+      // ===== TEMP =====
       if (room.levels?.temp && room.alerts?.temp) {
         this.announceAlert(room, "temp");
       }
 
-      // ===== CHECK HUMIDITY - WITH ALERT FLAG =====
+      // ===== HUMIDITY =====
       if (room.levels?.humidity && room.alerts?.humidity) {
         this.announceAlert(room, "humidity");
       }
