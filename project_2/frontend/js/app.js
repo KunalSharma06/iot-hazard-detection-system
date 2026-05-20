@@ -176,7 +176,11 @@
     },
 
     announceAlert(room, alertType) {
-      const alertKey = `${room.room}-${alertType}`;
+      // const alertKey = `${room.room}-${alertType}`;
+      const currentLevel =
+        alertType === "fire" ? "danger" : room.levels?.[alertType] || "warning";
+
+      const alertKey = `${room.room}-${alertType}-${currentLevel}`;
       const now = Date.now();
 
       // Check cooldown - STRICT cooldown to prevent spam
