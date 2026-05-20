@@ -192,7 +192,7 @@
       let message = "";
       let level = "";
 
-      // ===== FIRE ALERT (DANGER: VOICE + HISTORY) =====
+      // ===== FIRE ALERT (DANGER: VOICE + HISTORY + POPUP) =====
       if (alertType === "fire") {
         level = "danger";
         message = `CRITICAL ALERT! FIRE DETECTED IN ROOM ${room.room}! FLAME SENSOR ACTIVATED! EVACUATE IMMEDIATELY!`;
@@ -200,7 +200,7 @@
         this.speak(message, 1.2, 1.1, 1.0);
         this.createVisualAlert(
           "🚨 FIRE DETECTED",
-          `Room ${room.room} - IMMEDIATE EVACUATION REQUIRED`,
+          `Room ${room.room}\nFLAME SENSOR TRIGGERED\nLevel: DANGER\nIMMEDIATE EVACUATION REQUIRED`,
           "danger",
         );
       }
