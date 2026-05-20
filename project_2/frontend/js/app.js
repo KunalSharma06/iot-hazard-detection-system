@@ -175,11 +175,11 @@
       this.synth.speak(utterance);
     },
 
-    announceAlert(room, alertType, details) {
+    announceAlert(room, alertType) {
       const alertKey = `${room.room}-${alertType}`;
       const now = Date.now();
 
-      // Check cooldown
+      // Check cooldown - STRICT cooldown to prevent spam
       if (this.lastAlerts.has(alertKey)) {
         const lastTime = this.lastAlerts.get(alertKey);
         if (now - lastTime < this.alertCooldown) {
@@ -192,10 +192,11 @@
       let message = "";
       let level = "";
 
-      // ===== FIRE ALERT (DANGER: VOICE + HISTORY + POPUP) =====
+      // ===== FIRE ALERT (IMMEDIATE - NO DELAY) =====
       if (alertType === "fire") {
         level = "danger";
         message = `CRITICAL ALERT! FIRE DETECTED IN ROOM ${room.room}! FLAME SENSOR ACTIVATED! EVACUATE IMMEDIATELY!`;
+        // IMMEDIATE EXECUTION - No delays
         this.playAlarmSound("danger");
         this.speak(message, 1.2, 1.1, 1.0);
         this.createVisualAlert(
@@ -204,7 +205,7 @@
           "danger",
         );
       }
-      // ===== MQ2 ALERT (LPG/SMOKE - DANGER + WARNING: VOICE + HISTORY) =====
+      // ===== MQ2 ALERT (LPG/SMOKE - DANGER + WARNING) =====
       else if (alertType === "mq2") {
         const value = room.mq2;
 
@@ -230,7 +231,7 @@
           );
         }
       }
-      // ===== MQ4 ALERT (METHANE - DANGER + WARNING: VOICE + HISTORY) =====
+      // ===== MQ4 ALERT (METHANE - DANGER + WARNING) =====
       else if (alertType === "mq4") {
         const value = room.mq4;
 
@@ -256,7 +257,7 @@
           );
         }
       }
-      // ===== TEMPERATURE ALERT (DANGER + WARNING: VOICE + HISTORY) =====
+      // ===== TEMPERATURE ALERT (DANGER + WARNING) =====
       else if (alertType === "temp") {
         level = room.levels?.temp === "danger" ? "danger" : "warning";
         const value = room.temp.toFixed(1);
@@ -281,7 +282,7 @@
           );
         }
       }
-      // ===== HUMIDITY ALERT (DANGER + WARNING: VOICE + HISTORY) =====
+      // ===== HUMIDITY ALERT (DANGER + WARNING) =====
       else if (alertType === "humidity") {
         level = room.levels?.humidity === "danger" ? "danger" : "warning";
         const value = room.humidity.toFixed(0);
@@ -335,8 +336,8 @@
 
       document.body.appendChild(alert);
 
-      // Animate in
-      setTimeout(() => alert.classList.add("show"), 10);
+      // Animate in IMMEDIATELY - no delay
+      alert.classList.add("show");
 
       // Dismiss button
       alert
@@ -358,12 +359,12 @@
     checkRoomAlerts(room) {
       if (!room || !room.online) return;
 
-      // Check fire
-      if (room.flame === 1 && room.alerts?.fire) {
+      // ===== CHECK FIRE - DIRECT CHECK (NO ALERTS FLAG NEEDED) =====
+      if (room.flame === 1) {
         this.announceAlert(room, "fire");
       }
 
-      // Check gas sensors
+      // ===== CHECK GAS SENSORS - WITH ALERT FLAGS =====
       if (room.levels?.mq2 && room.alerts?.mq2) {
         this.announceAlert(room, "mq2");
       }
@@ -371,12 +372,12 @@
         this.announceAlert(room, "mq4");
       }
 
-      // Check temperature
+      // ===== CHECK TEMPERATURE - WITH ALERT FLAG =====
       if (room.levels?.temp && room.alerts?.temp) {
         this.announceAlert(room, "temp");
       }
 
-      // Check humidity
+      // ===== CHECK HUMIDITY - WITH ALERT FLAG =====
       if (room.levels?.humidity && room.alerts?.humidity) {
         this.announceAlert(room, "humidity");
       }
@@ -670,7 +671,7 @@
       const room2 = rooms.find((r) => r.room === 2);
       const room3 = rooms.find((r) => r.room === 3);
 
-      // Check alerts for each room
+      // Check alerts for each room - IMMEDIATE CHECK
       if (room1) VoiceAlertSystem.checkRoomAlerts(room1);
       if (room2) VoiceAlertSystem.checkRoomAlerts(room2);
 
@@ -756,7 +757,7 @@
     poll();
     pollInterval = setInterval(poll, 2000);
 
-    // FIX #1: Restore room if it was saved
+    // Restore room if it was saved
     if (currentRoom !== null) {
       showDetailPage(currentRoom);
     }
